@@ -25,7 +25,7 @@ def source():
 PARAMS={'bpm':120,'meter':'4/4','key':'C major'}
 def project():
     raw=source();score=score_for_request(raw,PARAMS)
-    return {'kind':'audio-converter-project','schemaVersion':1,'appVersion':'0.3.1','source':{**raw,**PARAMS,'name':'test.flac','scoreFingerprint':score['scoreFingerprint']},'versions':[{}],'activeVersion':0,'textureSets':{},'instruments':['flute','cello'],'voices':[True,False],'position':1.5,'loop':{'enabled':True,'startMeasure':1,'endMeasure':2}}
+    return {'kind':'audio-converter-project','schemaVersion':1,'appVersion':'0.3.2','source':{**raw,**PARAMS,'name':'test.flac','scoreFingerprint':score['scoreFingerprint']},'versions':[{}],'activeVersion':0,'textureSets':{},'instruments':['flute','cello'],'voices':[True,False],'position':1.5,'loop':{'enabled':True,'startMeasure':1,'endMeasure':2}}
 
 class WorkspaceTests(unittest.TestCase):
     def test_edit_operations_are_immutable_and_preserve_ids(self):

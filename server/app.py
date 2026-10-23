@@ -176,7 +176,7 @@ def health():
         catalog=json.loads((ROOT/'dist/instruments/manifest.json').read_text(encoding='utf-8'))
         if any(not (ROOT/'dist/instruments'/instrument/name).is_file() for instrument,bank in catalog['instruments'].items() for name in bank['files']):missing.append('instrument samples')
     except (OSError,ValueError,KeyError):missing.append('instrument samples')
-    return jsonify(ready=not missing, missing=missing,engine='game',scoreVersion=15,appVersion='0.3.1',textureReady=available())
+    return jsonify(ready=not missing, missing=missing,engine='game',scoreVersion=15,appVersion='0.3.2',textureReady=available())
 
 @app.post('/api/jobs')
 def upload():

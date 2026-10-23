@@ -37,7 +37,7 @@ A complete portable folder runs with its own **Start.cmd**, without an installed
 Maintainers can build a portable folder after Setup and a frontend build:
 
 ```powershell
-.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.1 --zip release/LocalAudio-0.3.1.zip
+.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.2 --zip release/LocalAudio-0.3.2.zip
 ```
 
 The output directory must not exist. The packager collects the installed dependency closure, Python runtime, local models, tools, built frontend and licenses, with SHA-256 provenance. User songs, projects and runtime jobs are excluded. Copy/compress the entire folder; this offline distribution is much larger than source alone.
@@ -57,6 +57,8 @@ Do not open index.html directly. `npm run dev` starts only the development front
 For model repair, use `setup-game.ps1` or `SetupTexture.cmd`. Instrument preparation is included in Setup and is also available through `scripts/instrument_resources.py`. Once prepared, analysis and instrument playback use local resources.
 
 ## Workflow and persistence
+
+The desktop workspace has three columns: source/settings on the left, playback/score in the center, and instruments/editing/downbeat/chords/export on the right. Transparent controls flank the score for page turning; narrow screens stack the panels.
 
 Apply musical settings, choose a file, wait for the melody, correct the downbeat if needed, and open **Chords & arrangement** to generate/edit chords and textures. The treble staff is written one octave above sounding pitch with an octave clef; playback retains the detected pitch. Click notes, rests, labels or measure whitespace to start playback.
 
@@ -121,3 +123,9 @@ The GF driver, manual-downbeat workflow, constrained chord/texture adaptations, 
 BPM, meter, key and downbeat require user confirmation. Detection can contain wrong/missing notes; accompaniment is generated rather than reconstructed. Large files may exceed CPU/memory, and instruments have different natural attacks/decays. Prior listening feedback is not a measured accuracy benchmark.
 
 The repository is public. An original-project license has not been selected for this release; third-party code/assets retain their existing licenses. No user recording or listening-analysis dataset is distributed by this repository.
+
+## Local folders and cleanup
+
+src, server, scripts and tests contain source and regression scripts. Keep public, models, tools and vendor for samples, inference resources, media tools and upstream notices. Existing .venv and node_modules are reused rather than reinstalled during cleanup.
+
+dist is the current built frontend. tests/output is regenerable test output. release retains only the current portable ZIP, checksums and verification record. Old archives, duplicate extracted runtimes, screenshots and test projects can be removed. Store personal audio and .acproject.json files outside this repository; neither belongs on GitHub. Do not clear .runtime while a task is active.

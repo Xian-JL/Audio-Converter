@@ -16,10 +16,19 @@ export const instruments=[
 ] as const;
 export type InstrumentId=typeof instruments[number]['id'];
 const banks=new Map<string,Promise<Record<string,AudioBuffer>>>();
+const gains=new Map<string,number>();
+function calibrate(id:InstrumentId,buffers:Record<string,AudioBuffer>){
+  if(!gains.has(id)){
+    const rms=Object.values(buffers).map(buffer=>{const data=buffer.getChannelData(0);let sum=0,count=0;for(let i=Math.floor(buffer.sampleRate*.05);i<Math.min(data.length,buffer.sampleRate*.8);i+=8){sum+=data[i]*data[i];count++;}return count?Math.sqrt(sum/count):0;}).filter(v=>v>.0001).sort((a,b)=>a-b);
+    const median=rms[Math.floor(rms.length/2)]||.1;gains.set(id,Math.max(-6,Math.min(6,20*Math.log10(.1/median))));
+  }
+  return buffers;
+}
+export function normalizationDb(id:InstrumentId){return gains.get(id)||0;}
 let catalog:Promise<{instruments:Record<string,{samples:Record<string,string>}>}>|null=null;
 export function instrument(id:InstrumentId){return instruments.find(item=>item.id===id)!;}
 export function loadInstrument(tone:ToneModule,id:InstrumentId){
-  if(id==='piano')return loadPiano(tone);
+  if(id==='piano')return loadPiano(tone).then(buffers=>calibrate(id,buffers));
   if(!banks.has(id)){
     catalog??=fetch('/instruments/manifest.json').then(r=>{if(!r.ok)throw Error('Instrument resources missing');return r.json();}).catch(e=>{catalog=null;throw e;});
     const bank=catalog.then(async data=>{
@@ -27,7 +36,7 @@ export function loadInstrument(tone:ToneModule,id:InstrumentId){
       return Object.fromEntries(await Promise.all(Object.entries(samples).map(async([note,name])=>{
         const holder=new tone.ToneAudioBuffer();try{await holder.load(`/instruments/${id}/${name}`);const value=holder.get();if(!value)throw Error('Sample decoding failed');return [note,value];}finally{holder.dispose();}
       })));
-    }).catch(e=>{banks.delete(id);throw e;});banks.set(id,bank);
+    }).then(buffers=>calibrate(id,buffers)).catch(e=>{banks.delete(id);throw e;});banks.set(id,bank);
   }
   return banks.get(id)!;
 }

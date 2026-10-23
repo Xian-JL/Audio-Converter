@@ -14,7 +14,7 @@ async function settled(){await page.waitForFunction(()=>!document.body.innerText
 try{
   await page.goto('http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();
   await page.getByRole('spinbutton',{name:'速度（BPM）'}).fill('68');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();
-  await page.locator('.drop-zone[aria-disabled="false"]').waitFor();await page.locator('input[type=file]').setInputFiles('tests/fixtures/ui-upload.flac');await page.locator('.score-note').first().waitFor();await page.locator('.score-settings summary').click();
+  await page.locator('.drop-zone[aria-disabled="false"]').waitFor();await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/fixtures/ui-upload.flac');await page.locator('.score-note').first().waitFor();await page.locator('.score-settings summary').click();
   await request('harmony',()=>page.getByRole('button',{name:'生成基本和弦',exact:true}).click());await settled();
   const block=await request('harmony',()=>page.getByLabel('和弦 2',{exact:true}).selectOption('5:7'));await settled();const blockPng=await xml();
   const take=await request('texture',()=>page.getByRole('button',{name:'生成丰富伴奏',exact:true}).click());await settled();

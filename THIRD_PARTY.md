@@ -29,3 +29,9 @@ FFmpeg/FFprobe 使用本地 tools 目录内程序，许可证保留于 tools/FFm
 新增采样来自 https://github.com/nbrosowsky/tonejs-instruments ，固定提交 622c2f1c32c8cfce4158ddc3eb26e518ddef37e5。仅使用采样，不引入上游加载器。源库声明采样为 CC BY 3.0，上游代码为 MIT。原 LICENSE.md、sample-source-info.txt 及各文件 SHA-256 保留于 public/instruments，构建时复制至本地 dist。
 
 新增 11 种乐器，共 74 个锚点 MP3，15,376,302 字节（约 14.7 MiB）。候选映射由固定上游音符表提取，按音域选取锚点，间隔音由 Tone.Sampler 重采样。每种乐器使用真实采样，未用同一个合成器换名替代。与已有钢琴合计 12 种。处理与播放时只访问同源本机资源。
+
+## v0.3 适配与便携运行时
+
+音符编辑、工程格式、声部分配、乐句包络、重复动机复用和有限度 RMS 校准由本项目实现；没有新增识别模型，也没有修改保留的上游模块。持续型音色继续使用上述 CC BY 3.0 采样，在内存中构造循环和释放包络，来源说明不变。
+
+便携包从本机已安装发行包的 RECORD 收集运行依赖闭包，并保留各 dist-info 的许可信息及 Python 根目录 LICENSE。包版本、文件大小和 SHA-256 记录于 bundle-manifest.json。仅移除测试、缓存和开发头文件，不移除许可证。构建脚本不下载或重新授权第三方模型；源码公开不代表本项目原创代码自动采用 MIT。

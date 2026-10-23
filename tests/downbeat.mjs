@@ -12,7 +12,7 @@ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()
 await page.route('**/api/reset',r=>r.fulfill({status:204}));await page.route('**/api/jobs',r=>r.fulfill({status:202,json:{id:'e'.repeat(32)}}));
 async function load(){
   await page.goto(process.env.QA_BASE_URL||'http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();await page.getByRole('spinbutton',{name:'速度（BPM）'}).fill('68');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();await page.locator('.drop-zone[aria-disabled="false"]').waitFor();
-  await page.locator('input[type=file]').setInputFiles('tests/fixtures/ui-upload.flac');await page.waitForFunction(n=>Number(document.querySelector('.gf-score')?.dataset.mappedNotes)===n,base.noteCount);await page.locator('.score-settings summary').click();
+  await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/fixtures/ui-upload.flac');await page.waitForFunction(n=>Number(document.querySelector('.gf-score')?.dataset.mappedNotes)===n,base.noteCount);await page.locator('.score-settings summary').click();
 }
 async function request(kind,action){const response=page.waitForResponse(r=>r.url().endsWith('/'+kind));await action();const actual=await response;assert.equal(actual.status(),200);return actual.json();}
 async function choose(id){const element=page.locator(`.score-note[data-note-id="${id}"][data-anchor-onset="true"]`).first();await page.getByLabel('乐谱页码',{exact:true}).selectOption(await element.getAttribute('data-page'));await element.evaluate(e=>e.scrollIntoView({block:'center'}));await element.click();}

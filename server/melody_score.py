@@ -6,6 +6,7 @@ GF timing is retained separately for listening; neither representation drops not
 import hashlib
 import json
 import math
+import re
 import xml.etree.ElementTree as ET
 from .score import validate_settings, tag, spell_pitch, timestamp, KEYS
 from .meter_grid import make_grid
@@ -21,6 +22,8 @@ def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
     duration=float(result['duration'])
     if not math.isfinite(duration) or duration<=0:raise ValueError('Audio duration must be positive.')
     raw=result.get('notes',[])
+    logical_ids=[n.get('id',f'gf-{i+1:06d}') for i,n in enumerate(raw)]
+    if any(not isinstance(value,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',value) for value in logical_ids) or len(set(logical_ids))!=len(logical_ids):raise ValueError('Invalid note identities.')
     last_end=0.
     for n in raw:
         if not all(math.isfinite(float(n[k])) for k in ('start','end','midi')) or not 0<=n['start']<n['end']<=duration+1e-5 or n['start']<last_end-1e-5 or not 0<=n['midi']<=127:
@@ -28,7 +31,7 @@ def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
         last_end=n['end']
     anchor_index=None
     if anchor_note_id is not None:
-        ids={f'gf-{i+1:06d}':i for i in range(len(raw))}
+        ids={value:i for i,value in enumerate(logical_ids)}
         if not isinstance(anchor_note_id,str) or anchor_note_id not in ids:raise ValueError('Please select a melody note onset as the downbeat.')
         anchor_index=ids[anchor_note_id]
     anchor_time=raw[anchor_index]['start'] if anchor_index is not None else None
@@ -53,7 +56,7 @@ def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
     notes=[];events=[];notated=[]
     for i,n in enumerate(raw):
         start=starts[i];end=min(starts[i+1] if i+1<len(raw) else total_ticks,max(start+1,grid.snap(n['end'])))
-        note_id=f'gf-{i+1:06d}'
+        note_id=logical_ids[i]
         info={'id':note_id,'index':i+1,'midi':int(round(n['midi'])),'midiFloat':n.get('midiFloat',float(n['midi'])),
               'start':n['start'],'end':n['end'],'startTick':start,'endTick':end,
               'notatedStart':round(grid.time(start),6),'notatedEnd':round(min(duration,grid.time(end)),6)}

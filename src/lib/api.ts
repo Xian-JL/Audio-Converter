@@ -1,4 +1,5 @@
 export interface Job {
+  restored?:boolean;
   id: string; name: string; size: number; downloadName: string; stage: string; progress: number;
   playbackReady: boolean; analysisReady: boolean; error?: string; analysisError?: string;
   conversionSeconds?: number; analysisSeconds?: number;
@@ -7,6 +8,7 @@ export interface Job {
   info?: { duration: number; sampleRate: number; channels: number; format: string; ignoredTrailingData?: boolean };
 }
 export interface ScoreData {
+  editedNotes?:NoteInput[]; revisionKind?:'edit';
   baseFingerprint?:string;
   downbeat?:{noteId:string;time:number;phaseSeconds:number;measureNumber:number}|null;
   grid?:{phaseSeconds:number;pickupTicks:number};
@@ -26,12 +28,13 @@ export interface ScoreData {
   harmonyReviews?: { start: number; startTick: number; reasons: string[] }[];
   harmonies?: { start: number; end: number; name: string; roman: string; pitches: number[]; pattern: string }[];
   measures: { number: number; displayNumber?:number; pickup?:boolean; startTick?:number; endTick?:number; start: number; end: number; label: string; hasVocal: boolean }[];
-  events: { id?: string; start: number; end: number; pitches: number[]; staff: number; velocity?: number }[];
+  events: { id?: string; start: number; end: number; pitches: number[]; staff: number; velocity?: number; voice?:number }[];
 }
+export interface NoteInput {id:string;start:number;end:number;midi:number;midiFloat:number}
 export interface MusicSettings { bpm: number; meter: string; key: string }
 export interface AccompanimentData {
   sourceFingerprint:string;harmonyFingerprint:string;fingerprint:string;
-  settings:{style:'lyrical'|'flowing'|'syncopated';density:number;variant:number};
+  settings:{style:'lyrical'|'flowing'|'syncopated';density:number;variant:number;voicing?:'layered'|'compact'};
   events:ScoreData['events'];xml:string;writtenChords:BasicHarmony['writtenChords'];
   references:{firstMeasure:number;bars:number;donor:number}[];
   model:{version:string;commit:string};generationSeconds:number;

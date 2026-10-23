@@ -1,6 +1,8 @@
 """Same-origin, loopback-only UI/API with one isolated analysis subprocess."""
 from pathlib import Path
 import atexit
+import hashlib
+import tempfile
 import json
 import re
 import shutil
@@ -37,16 +39,10 @@ def cancel(job_id):
         job = jobs.pop(job_id, None)
     if not job:
         return
+    for process in list(job.get('textureProcesses',{}).values()):
+        terminate_process(process)
     process = job.get('process')
-    if process and process.poll() is None:
-        if sys.platform == 'win32':
-            subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], capture_output=True, timeout=15)
-        else:
-            process.terminate()
-        try:
-            process.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            process.kill()
+    terminate_process(process)
     path = owned_dir(job_id)
     try:
         shutil.rmtree(path)
@@ -54,6 +50,62 @@ def cancel(job_id):
         pass
     except OSError:
         threading.Thread(target=cleanup_directory, args=(path,), daemon=True).start()
+
+def terminate_process(process):
+    if process and process.poll() is None:
+        if sys.platform == 'win32':
+            try:subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], capture_output=True, timeout=15)
+            except subprocess.SubprocessError:process.kill()
+        else:
+            process.terminate()
+        try:
+            process.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+def public_job(job):
+    return {k:v for k,v in job.items() if k not in ('process','textureProcesses','cancelledTextures')}
+
+def start_texture_process(path):
+    return subprocess.Popen([sys.executable,'-m','server.texture_worker',str(path)],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0)
+
+def run_texture(job_id,body,melody,harmony):
+    token=body.get('requestId',uuid.uuid4().hex)
+    if not isinstance(token,str) or not re.fullmatch('[a-f0-9]{32}',token):raise ValueError('Invalid arrangement request.')
+    with lock:
+        job=jobs.get(job_id)
+        if not job:raise ValueError('This task is no longer active.')
+        if token in job.get('cancelledTextures',set()):raise ValueError('Arrangement cancelled.')
+        workers=job.setdefault('textureProcesses',{})
+        if workers:raise ValueError('An arrangement is already running. Cancel it before starting another.')
+        path=owned_dir(job_id)/(token+'.texture')
+        path.write_text(json.dumps({'score':melody,'harmony':harmony,'style':body.get('style','lyrical'),'density':body.get('density',1),'variant':body.get('variant',0),'voicing':body.get('voicing','layered')}),encoding='utf-8')
+        process=start_texture_process(path)
+        workers[token]=process
+    try:
+        process.wait()
+        with lock:
+            if jobs.get(job_id) is not job or workers.get(token) is not process:raise ValueError('Arrangement cancelled.')
+        if process.returncode or not path.with_suffix('.result').is_file():raise ValueError('Arrangement stopped unexpectedly. Please retry.')
+        value=json.loads(path.with_suffix('.result').read_text(encoding='utf-8'))
+        if 'error' in value:raise ValueError(value['error'])
+        return value['result']
+    finally:
+        with lock:workers.pop(token,None)
+        path.unlink(missing_ok=True);path.with_suffix('.result').unlink(missing_ok=True)
+
+@app.delete('/api/jobs/<job_id>/texture/<token>')
+def cancel_texture(job_id,token):
+    if not re.fullmatch('[a-f0-9]{32}',token):return jsonify(error='Invalid arrangement request.'),400
+    with lock:
+        job=jobs.get(job_id)
+        if job:
+            cancelled=job.setdefault('cancelledTextures',set())
+            if len(cancelled)>256:cancelled.clear()
+            cancelled.add(token)
+        process=job.get('textureProcesses',{}).pop(token,None) if job else None
+    terminate_process(process)
+    return '',204
 
 def cleanup_directory(path):
     if path.resolve().parent != RUNTIME.resolve() or not re.fullmatch(r'[a-f0-9]{32}', path.name):
@@ -124,7 +176,7 @@ def health():
         catalog=json.loads((ROOT/'dist/instruments/manifest.json').read_text(encoding='utf-8'))
         if any(not (ROOT/'dist/instruments'/instrument/name).is_file() for instrument,bank in catalog['instruments'].items() for name in bank['files']):missing.append('instrument samples')
     except (OSError,ValueError,KeyError):missing.append('instrument samples')
-    return jsonify(ready=not missing, missing=missing,engine='game',scoreVersion=14,appVersion='0.2.0',textureReady=available())
+    return jsonify(ready=not missing, missing=missing,engine='game',scoreVersion=15,appVersion='0.3.0',textureReady=available())
 
 @app.post('/api/jobs')
 def upload():
@@ -154,16 +206,25 @@ def upload():
         message = 'The selected file is empty. Please choose another file.' if original.stat().st_size == 0 else 'File exceeds the size limit (maximum 100 MB).'
         shutil.rmtree(directory)
         return jsonify(error=message), 400
+    try:
+        from .audio import probe
+        probe(original)
+    except (ValueError,OSError,subprocess.SubprocessError) as error:
+        shutil.rmtree(directory)
+        return jsonify(error=str(error)),400
     with lock:
         if client and sequence < client_sequences.get(client, 0):
             shutil.rmtree(directory)
             return jsonify(error='This upload was replaced by a newer selection.'), 409
         if client:
             client_sequences[client] = sequence
-        for old_id in list(jobs):
-            cancel(old_id)
+        previous=[old_id for old_id,j in jobs.items() if j.get('client','')==client]
         jobs[job_id] = {'id': job_id, 'client': client, 'separationMode': mode, 'name': name, 'downloadName': name if extension == '.mp3' else name[:-len(extension)] + '.mp3', 'size': original.stat().st_size, 'stage': 'validating', 'progress': 0, 'playbackReady': extension == '.mp3', 'analysisReady': False, 'createdAt': time.time()}
-        launch(job_id)
+        try:launch(job_id)
+        except OSError as error:
+            cancel(job_id)
+            return jsonify(error=str(error)),500
+        for old_id in previous:cancel(old_id)
     return jsonify(id=job_id), 202
 
 @app.post('/api/reset')
@@ -180,7 +241,7 @@ def reset():
         client_sequences[client] = sequence
         for job_id in list(jobs):
             # Page-close beacons from an old tab must not cancel a newer tab's task.
-            if not payload.get('closing') or jobs[job_id].get('client') == client:
+            if jobs[job_id].get('client','') == client:
                 cancel(job_id)
     return '', 204
 
@@ -190,7 +251,7 @@ def status(job_id):
         job = jobs.get(job_id)
         if not job:
             return jsonify(error='This task is no longer active.'), 404
-        return jsonify({k: v for k, v in job.items() if k != 'process'})
+        return jsonify(public_job(job))
 
 @app.delete('/api/jobs/<job_id>')
 def clear(job_id):
@@ -203,7 +264,8 @@ def retry(job_id):
         job = jobs.get(job_id)
         if not job:
             return jsonify(error='This task is no longer active.'), 404
-        if job['process'].poll() is None:
+        if job.get('restored'):return jsonify(error='Link the original audio and upload it again to rerun recognition.'),409
+        if job.get('process') and job['process'].poll() is None:
             return jsonify(error='Analysis is still running.'), 409
         mode = (request.get_json(silent=True) or {}).get('separationMode', job.get('separationMode', 'enhanced'))
         if mode not in ('enhanced', 'original'):
@@ -269,7 +331,7 @@ def score(job_id):
 
 @app.post('/api/jobs/<job_id>/harmony')
 def harmony(job_id):
-    if (request.content_length or 0)>65536:
+    if (request.content_length or 0)>4*1024*1024:
         return jsonify(error='Harmony settings are too large.'),413
     body=request.get_json(silent=True)
     if not isinstance(body,dict):return jsonify(error='Invalid harmony settings.'),400
@@ -279,9 +341,9 @@ def harmony(job_id):
         result=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'))
     if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
     try:
-        from .melody_score import generate_melody_score
+        from .editing import score_for_request
         from .basic_harmony import generate_basic_harmony
-        melody=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'),body.get('anchorNoteId'))
+        melody=score_for_request(result,body)
         if body.get('sourceFingerprint')!=melody['scoreFingerprint']:
             return jsonify(error='The melody has changed. Reload the score before generating chords.'),409
         return jsonify(generate_basic_harmony(melody,body.get('locks'),body.get('phraseStarts'),body.get('chordOffsetMs',0)))
@@ -291,38 +353,37 @@ def harmony(job_id):
 @app.post('/api/jobs/<job_id>/texture')
 def texture(job_id):
     body=request.get_json(silent=True)
-    if not isinstance(body,dict) or (request.content_length or 0)>65536:return jsonify(error='Invalid accompaniment settings.'),400
+    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:return jsonify(error='Invalid accompaniment settings.'),400
     with lock:
         job=jobs.get(job_id)
         if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready yet.'),404
         result=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'))
     if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
     try:
-        from .melody_score import generate_melody_score
+        from .editing import score_for_request
         from .basic_harmony import generate_basic_harmony
-        from .accompaniment import generate_accompaniment
-        melody=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'),body.get('anchorNoteId'))
+        melody=score_for_request(result,body)
         if body.get('sourceFingerprint')!=melody['scoreFingerprint']:return jsonify(error='The melody has changed. Reload the score.'),409
         harmony=generate_basic_harmony(melody,body.get('locks'),body.get('phraseStarts'),body.get('chordOffsetMs',0))
         if body.get('harmonyFingerprint')!=harmony['fingerprint']:return jsonify(error='The harmony has changed. Generate the accompaniment again.'),409
-        return jsonify(generate_accompaniment(melody,harmony,body.get('style','lyrical'),body.get('density',1),body.get('variant',0)))
+        return jsonify(run_texture(job_id,body,melody,harmony))
     except (ValueError,TypeError) as error:return jsonify(error=str(error)),400
 
 @app.post('/api/jobs/<job_id>/rebar')
 def rebar(job_id):
     body=request.get_json(silent=True)
-    if not isinstance(body,dict) or (request.content_length or 0)>65536:return jsonify(error='Invalid downbeat settings.'),400
+    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:return jsonify(error='Invalid downbeat settings.'),400
     with lock:
         job=jobs.get(job_id)
         if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready yet.'),404
         result=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'));name=job['name']
     if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
     try:
-        from .melody_score import generate_melody_score
-        original=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'))
+        from .editing import score_for_request
+        original=score_for_request(result,body,anchor=False)
         if body.get('sourceFingerprint')!=original['scoreFingerprint']:return jsonify(error='The melody has changed. Reload the score.'),409
         if not body.get('anchorNoteId'):raise ValueError('Please select a melody note onset as the downbeat.')
-        rebuilt=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'),body['anchorNoteId'])
+        rebuilt=score_for_request(result,body)
         rebuilt['sourceName']=name
         harmony=None
         if body.get('includeHarmony'):
@@ -330,6 +391,67 @@ def rebar(job_id):
             harmony=generate_basic_harmony(rebuilt)
         return jsonify(score=rebuilt,harmony=harmony)
     except (ValueError,TypeError) as error:return jsonify(error=str(error)),400
+
+@app.post('/api/jobs/<job_id>/edit')
+def edit(job_id):
+    body=request.get_json(silent=True)
+    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:return jsonify(error='Invalid melody edit.'),400
+    with lock:
+        job=jobs.get(job_id)
+        if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready yet.'),404
+        source=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'));name=job['name']
+    try:
+        from .editing import edit_score
+        result=edit_score(source,body);result['score']['sourceName']=name
+        return jsonify(result)
+    except (ValueError,TypeError,KeyError) as error:return jsonify(error=str(error)),400
+
+@app.post('/api/projects/open')
+def open_project():
+    from .project import normalize_project, PROJECT_LIMIT
+    if (request.content_length or 0)>PROJECT_LIMIT:return jsonify(error='Project exceeds the size limit (32 MB).'),413
+    try:
+        original,root,workspace=normalize_project(request.get_json(silent=True))
+        client=request.headers.get('X-Client-Session','');sequence=int(request.headers.get('X-Upload-Sequence','0'))
+    except (ValueError,TypeError,KeyError,OverflowError) as error:return jsonify(error=str(error)),400
+    identifier=uuid.uuid4().hex
+    with lock:
+        if sequence<client_sequences.get(client,0):return jsonify(error='This project was replaced by a newer selection.'),409
+        directory=owned_dir(identifier);directory.mkdir(parents=True)
+        (directory/'analysis.json').write_text(json.dumps(original,allow_nan=False),encoding='utf-8')
+        job={'id':identifier,'client':client,'name':root['sourceName'],'size':0,'downloadName':Path(root['sourceName']).stem+'.mp3','stage':'ready','progress':1,'playbackReady':False,'analysisReady':True,'restored':True,'info':{'duration':root['duration'],'format':'PROJECT'}}
+        for old in list(jobs):
+            if jobs[old].get('client','')==client:cancel(old)
+        client_sequences[client]=sequence;jobs[identifier]=job
+    return jsonify(job=job,score=root,workspace=workspace)
+
+@app.post('/api/jobs/<job_id>/source')
+def link_source(job_id):
+    """Associate the exact original bytes without rerunning or replacing GF."""
+    with lock:
+        job=jobs.get(job_id)
+        if not job or not job.get('restored'):return jsonify(error='Open a saved project before linking its source.'),400
+        source=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'))
+    file=request.files.get('file')
+    if file is None:return jsonify(error='Please select the original MP3 or FLAC file.'),400
+    extension=Path(file.filename or '').suffix.lower()
+    if extension not in ('.mp3','.flac'):return jsonify(error='Only MP3 and FLAC files are supported.'),400
+    try:
+        with tempfile.TemporaryDirectory(prefix='local-audio-source-') as temporary:
+            original=Path(temporary)/('input'+extension);file.save(original)
+            if not 0<original.stat().st_size<=MAX_BYTES:raise ValueError('File exceeds the size limit or is empty (maximum 100 MB).')
+            with original.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
+            if digest!=source['sourceSha256']:raise ValueError('This is not the original audio used by this project. Please choose the exact original file.')
+            from .audio import probe,convert
+            info=probe(original);playable=original
+            if extension=='.flac':
+                playable=Path(temporary)/'audio.mp3';convert(original,playable,info)
+            with lock:
+                if jobs.get(job_id) is not job:return jsonify(error='This task is no longer active.'),409
+                shutil.copy2(playable,owned_dir(job_id)/'audio.mp3')
+                job.update(playbackReady=True,size=original.stat().st_size,info=info)
+    except (ValueError,OSError,subprocess.SubprocessError) as error:return jsonify(error=str(error)),400
+    return jsonify(public_job(job))
 
 def shutdown():
     for job_id in list(jobs):

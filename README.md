@@ -1,4 +1,4 @@
-# Audio Converter · v0.2
+# Audio Converter · v0.3
 
 [简体中文](README.zh-CN.md) · [Specification](SPEC.md) · [Third-party credits](THIRD_PARTY.md)
 
@@ -30,6 +30,18 @@ Without Git, use the repository's **Code → Download ZIP**, extract it, and dou
 
 Keep the setup window open until it reports completion. Setup prepares the Python environment and frontend dependencies, downloads missing models/FFmpeg, verifies instrument samples, generates test fixtures if absent, and builds the application. Internet access is required for missing installation resources. Compatible packages and verified files are reused when you rerun setup. Model weights, FFmpeg binaries, Python environments and node_modules are installed locally rather than committed to GitHub.
 
+## Offline Windows portable bundle
+
+A complete portable folder runs with its own **Start.cmd**, without an installed Python, Node.js or network access. The normal GitHub source ZIP excludes these runtime/model binaries and still needs first-time setup.
+
+Maintainers can build a portable folder after Setup and a frontend build:
+
+```powershell
+.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.0 --zip release/LocalAudio-0.3.0.zip
+```
+
+The output directory must not exist. The packager collects the installed dependency closure, Python runtime, local models, tools, built frontend and licenses, with SHA-256 provenance. User songs, projects and runtime jobs are excluded. Copy/compress the entire folder; this offline distribution is much larger than source alone.
+
 ## Everyday use
 
 Double-click **Start.cmd**, or run the following from the project folder:
@@ -48,7 +60,15 @@ For model repair, use `setup-game.ps1` or `SetupTexture.cmd`. Instrument prepara
 
 Apply musical settings, choose a file, wait for the melody, correct the downbeat if needed, and open **Chords & arrangement** to generate/edit chords and textures. The treble staff is written one octave above sounding pitch with an octave clef; playback retains the detected pitch. Click notes, rests, labels or measure whitespace to start playback.
 
-Refresh clears audio jobs and generated versions. Some chord settings and the last downbeat reference can be restored by source fingerprint in the same browser. Export images and chord/arrangement JSON before closing to retain them. The 60/40 mix is a control-level ratio, not a measured loudness ratio.
+Use **Save project** to retain a complete `.acproject.json`: original GF notes, edits/rebar versions, per-version chords and arrangements, instruments, levels, position and loop range. **Open project** restores editable work without rerunning recognition. Audio is omitted; use **Link original audio** with the exact original file for source playback. Invalid files/projects preserve existing work. Save before refreshing or closing; there is no automatic song/project persistence.
+
+**Edit melody** enables treble-note pitch and start/end edits, insertion, deletion, split and equal-pitch merge. Each operation creates a revision with undo/redo; original GF remains available. Regenerate chords after edits. Pitch fields use sounding MIDI pitch, and times use original-audio seconds.
+
+Choose first/last measures and enable **Loop playback** to rehear a section; clicking outside the loop exits it and plays that measure. Both staff levels are adjustable (60/40 default). Sustained strings, winds and organ use sample loops with release envelopes; piano/plucked instruments decay naturally. Bounded sample-RMS calibration reduces level differences; this is not exact perceptual loudness matching.
+
+Layered accompaniment retains individual note durations in independent left-hand voices and adds phrase shaping, melody-responsive register and repeated-phrase motif reuse. Disable its checkbox for the compact reference. Cancelling terminates the actual CPU worker. Musical quality still needs listening evaluation.
+
+**Print & export options** supports page-range ZIP, cancellation and A4 printing / browser Save as PDF. PNGs carry a 300 dpi physical-resolution tag.
 
 ## Updating and troubleshooting
 
@@ -76,7 +96,7 @@ node tests/export.mjs
 
 Setup generates deterministic synthetic regression fixtures when fixtures are absent. The generator never overwrites existing local listening data. Private song recordings and their note-analysis JSON are excluded from Git. Committed media fixtures are generated silence. Synthetic fixtures test software invariants, not musical accuracy.
 
-GitHub Actions runs the frontend build, small Node checks and lightweight notation/harmony Python tests without downloading inference models. The full local suite requires prepared models. Browser checks additionally need Playwright/Chromium; see `tests/serve_ui.py`, `tests/ui.mjs`, `tests/downbeat.mjs`, `tests/layout.mjs`, `tests/pagination.mjs` and `tests/instruments.mjs`. `PLAYWRIGHT_PACKAGE` and `TEST_BROWSER_PATH` can point to an existing test installation; neither is a product dependency.
+GitHub Actions runs the frontend build, small Node checks and lightweight notation/harmony Python tests without downloading inference models. The full local suite requires prepared models. Browser checks additionally need Playwright/Chromium; see `tests/serve_ui.py`, `tests/ui.mjs`, `tests/downbeat.mjs`, `tests/layout.mjs`, `tests/pagination.mjs` and `tests/instruments.mjs` and `tests/workspace.mjs`. With the development frontend running, `tests/sound.mjs` additionally checks sustained instruments and scheduling pressure. `PLAYWRIGHT_PACKAGE` and `TEST_BROWSER_PATH` can point to an existing test installation; neither is a product dependency.
 
 ## Open-source foundations and attribution
 

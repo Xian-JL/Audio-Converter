@@ -68,7 +68,7 @@ class TextureTests(unittest.TestCase):
                 client=service.app.test_client();body={'bpm':68,'meter':'4/4','key':'C major','anchorNoteId':'gf-000001','sourceFingerprint':score['scoreFingerprint'],'harmonyFingerprint':harmony['fingerprint'],'locks':{'2':'5:7'}}
                 self.assertEqual(client.post(f'/api/jobs/{identifier}/texture',json={**body,'sourceFingerprint':'stale'}).status_code,409)
                 self.assertEqual(client.post(f'/api/jobs/{identifier}/texture',json={**body,'harmonyFingerprint':'stale'}).status_code,409)
-                with patch('server.accompaniment.generate_accompaniment',side_effect=ValueError('Accompaniment resources are missing.')):
+                with patch('server.app.run_texture',side_effect=ValueError('Accompaniment resources are missing.')):
                     response=client.post(f'/api/jobs/{identifier}/texture',json=body)
                     self.assertEqual(response.status_code,400);self.assertIn('resources',response.json['error'])
                 self.assertEqual(client.post(f'/api/jobs/{identifier}/harmony',json=body).status_code,200)

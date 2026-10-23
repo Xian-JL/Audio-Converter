@@ -1,4 +1,4 @@
-# Audio Converter · v0.2
+# Audio Converter · v0.3
 
 [English](README.md) · [规格](SPEC.md) · [第三方来源](THIRD_PARTY.md)
 
@@ -19,6 +19,18 @@ cd Audio-Converter
 没有 Git 也可以在仓库点击 **Code → Download ZIP**，解压后双击项目里的 **Setup.cmd**。
 
 保持安装窗口开启，直到提示完成。安装会准备 Python 环境和前端依赖、下载缺失模型及 FFmpeg、验证音色资源、按需生成测试夹具并构建网页。获取缺失资源需要联网；重复运行会复用兼容包和已校验文件。模型大文件和依赖环境不随 GitHub 源码提交。
+
+## Windows 离线便携包
+
+已准备好的完整便携目录中直接双击 Start.cmd，无需 Python、Node.js 或再次安装。普通 GitHub 源码 ZIP 不含运行时和模型，仍按上面的首次安装流程使用。
+
+维护者可在完成 Setup 与前端构建后生成便携目录：
+
+```powershell
+.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.0 --zip release/LocalAudio-0.3.0.zip
+```
+
+输出目录须不存在。打包只收集运行所需资源和依赖闭包，包含许可证及 SHA-256 清单，不带用户歌曲、工程或任务缓存。离线包体积明显大于源码；将整个目录复制或压缩后交付，不要只复制启动文件。
 
 ## 日常启动
 
@@ -42,9 +54,15 @@ cd Audio-Converter
 
 点击任意小节即可从该小节播放，也可通过小节选择框跳转。默认旋律/伴奏电平为 60/40。高音谱表为人声，谱面高八度书写、试听音高不变；低音谱表为新编伴奏。高音和低音可分别选择钢琴、吉他、弦乐、管乐等 12 种本地采样乐器，默认电平保持 60/40。切换音色不改变音符或节奏。
 
-页面刷新会清除音频任务及当前生成版本；同一来源的和弦配置和第一拍参考可在浏览器恢复。需要保留的结果请在关闭前导出。
+点击“保存工程”保留完整 .acproject.json：原始 GF、每次修订/重构、各版和弦与伴奏、音色、音量、播放位置和循环范围。下次点击“打开工程”继续，无需重新分析。工程默认不含音频；需要原曲对照时点击“关联原音频”，选择当时完全相同的原文件。错误文件或损坏工程不会清空现有作品。刷新前请主动保存，页面不会自动保存歌曲或工程。
 
-乐谱采用固定 A4 分页，网页和导出使用同一套页码。可在暂停时手动翻页；播放乐谱或原曲时会自动显示当前小节所在页。“下载此页 PNG”导出当前页，“导出全部页”一次下载包含各页 PNG 的 ZIP，文件按《曲名》Page_1.png、Page_2.png 顺序命名。PNG 为 2480×3508 像素，包含曲名、参数、当前音色及页码。图片替代原 MusicXML 下载。
+“编辑旋律”模式可点击高音谱音符，修改实际 MIDI 音高、起音和结束秒数，插入、删除、拆分或合并同音；每次修改另存版本，可撤销重做，原始 GF 始终保留。编辑后重新生成和弦。定位第一拍仍按原方法操作。
+
+勾选“循环播放”，设置起止小节即可反复试听；点击范围外的小节会退出循环并从那里播放。两谱表音量可独立调整，默认 60/40。持续型弦管乐与管风琴支持采样延音；钢琴和拨弦乐器保留自然衰减。
+
+丰富伴奏默认使用独立左手声部，保留逐音时值，并加入句首/句尾处理、随旋律调整的音区和重复短语动机复用；取消勾选可使用紧凑对照。取消编配会结束后台 CPU 子进程。音乐效果仍需人工试听，不能保证每首歌均优于旧版。
+
+乐谱采用固定 A4 分页，网页和导出使用同一套页码。可在暂停时手动翻页；播放乐谱或原曲时会自动显示当前小节所在页。“下载此页 PNG”导出当前页，“导出全部页”一次下载包含各页 PNG 的 ZIP，文件按《曲名》Page_1.png、Page_2.png 顺序命名。PNG 为 2480×3508 像素，包含曲名、参数、当前音色及页码。图片替代原 MusicXML 下载。展开“打印与导出选项”可导出页码范围、取消进行中的导出，或打开 A4 打印/保存 PDF；PNG 带 300 dpi 标记。
 
 播放、进度和两谱表音色集中在悬浮控制栏。“和弦与编配”默认收起，展开即可使用原有生成、修改、锁定及 JSON 导出；第一拍定位仍保留直接入口。分页浏览不改变音频位置，播放时由系统跟随当前小节。
 
@@ -57,7 +75,7 @@ node tests/playback.mjs
 node tests/export.mjs
 ```
 
-网页回归使用 `tests/serve_ui.py` 的独立临时任务，不使用真实工作任务。先运行 `.venv\Scripts\python.exe tests/serve_ui.py 8765`，再运行 `node tests/ui.mjs`、`node tests/downbeat.mjs` 、`node tests/layout.mjs`、`node tests/pagination.mjs` 和 `node tests/instruments.mjs`。这几个开发测试需另有 Playwright/Chromium；当前电脑使用已有 Codex 浏览器运行时，不增加产品依赖。`PLAYWRIGHT_PACKAGE` 可指定 Playwright 的 package.json，`TEST_BROWSER_PATH` 可指定浏览器程序。测试音频为静音文件，公开夹具由合成脚本生成，不发布本地歌曲及其实测旋律；仅用于软件回归，不代表试听质量。
+网页回归使用 `tests/serve_ui.py` 的独立临时任务，不使用真实工作任务。先运行 `.venv\Scripts\python.exe tests/serve_ui.py 8765`，再运行 `node tests/ui.mjs`、`node tests/downbeat.mjs` 、`node tests/layout.mjs`、`node tests/pagination.mjs` 和 `node tests/instruments.mjs`、`node tests/workspace.mjs`。音色长音与压力测试另运行开发前端，再执行 `node tests/sound.mjs`。这些开发测试需另有 Playwright/Chromium；当前电脑使用已有 Codex 浏览器运行时，不增加产品依赖。`PLAYWRIGHT_PACKAGE` 可指定 Playwright 的 package.json，`TEST_BROWSER_PATH` 可指定浏览器程序。测试音频为静音文件，公开夹具由合成脚本生成，不发布本地歌曲及其实测旋律；仅用于软件回归，不代表试听质量。
 
 新增音色资源由 `scripts/instrument_resources.py` 准备，Setup.cmd 已包含；资源就绪后所有音色均可离线使用。模型修复分别运行 `setup-game.ps1` 或 `SetupTexture.cmd`，完整安装使用 `Setup.cmd`。保留 `.venv`、`node_modules`、`models`、`tools` 和 `dist`，可直接启动及继续构建；不要把这些运行资源当作旧实验删除。
 

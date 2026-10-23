@@ -48,3 +48,8 @@ dist-ssr
 tests/fixtures/*.json
 *.wav
 *.musicxml
+
+# User projects contain private melody data
+*.acproject.json
+
+release/

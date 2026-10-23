@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { MusicSettings as Settings } from './lib/api';
 import type { en } from './lib/i18n';
 const keys = {
   major: ['Cb', 'Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#'],
   minor: ['Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#'],
 };
-export default function MusicSettings({ text, onApply, busy }: { text: typeof en; onApply: (settings: Settings) => void; busy: boolean }) {
+export default function MusicSettings({ text, onApply, busy, value }: { text: typeof en; onApply: (settings: Settings) => void; busy: boolean; value?: Settings|null }) {
   const [bpm, setBpm] = useState('');
   const [meter, setMeter] = useState('');
   const [key, setKey] = useState('');
+  useEffect(()=>{if(value){setBpm(String(value.bpm));setMeter(value.meter);setKey(value.key);}},[value]);
   return <section className="music-settings card">
     <div><h2>{text.musicSettings}</h2><p>{text.settingsHint}</p></div>
     <form className="settings-form" onSubmit={event => { event.preventDefault(); onApply({ bpm: Number(bpm), meter, key }); }}>

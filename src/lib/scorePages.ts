@@ -1,6 +1,6 @@
 export const PAGE_WIDTH=840;
 export function songTitle(name?:string){return (name||'Score').replace(/\.(mp3|flac)$/i,'').replace(/^.*?\s+-\s+/,'').replace(/^[《]|[》]$/g,'').trim()||'Score';}
-export function pageFileName(title:string,page:number){return `《${title.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_')}》Page_${page}.png`;}
+export function pageFileName(title:string,page:number){return `《${title.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,120)}》Page_${page}.png`;}
 export function saveBlob(blob:Blob,name:string){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 /** Export clean engraving only; interactive hitboxes/highlighting never enter PNGs. */
 export async function pagePng(source:SVGSVGElement,title:string,subtitle:string,page:number,total:number):Promise<Uint8Array<ArrayBuffer>>{
@@ -20,6 +20,13 @@ export async function pagePng(source:SVGSVGElement,title:string,subtitle:string,
     const scale=Math.min(2320/width,3190/height),w=width*scale,h=height*scale;ctx.drawImage(image,(2480-w)/2,185,w,h);
     ctx.fillStyle='#53645a';ctx.font='26px "Segoe UI", "Microsoft YaHei", sans-serif';ctx.fillText(`Page ${page} / ${total}`,1240,3450);
     const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('PNG export failed')),'image/png'));
-    return new Uint8Array(await blob.arrayBuffer());
+    return pngResolution(new Uint8Array(await blob.arrayBuffer()));
   }finally{URL.revokeObjectURL(url);}
+}
+export function pngResolution(bytes:Uint8Array<ArrayBuffer>){
+  const chunk=new Uint8Array(21),view=new DataView(chunk.buffer);view.setUint32(0,9);chunk.set(new TextEncoder().encode('pHYs'),4);view.setUint32(8,11811);view.setUint32(12,11811);chunk[16]=1;
+  let crc=0xffffffff;for(const value of chunk.slice(4,17)){crc^=value;for(let bit=0;bit<8;bit++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}view.setUint32(17,(crc^0xffffffff)>>>0);
+  const parts=[bytes.slice(0,33),chunk];let at=33;const source=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  while(at<bytes.length){const length=source.getUint32(at)+12;if(at+length>bytes.length)throw Error('Invalid PNG');if(new TextDecoder().decode(bytes.slice(at+4,at+8))!=='pHYs')parts.push(bytes.slice(at,at+length));at+=length;}
+  const result=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));at=0;for(const part of parts){result.set(part,at);at+=part.length;}return result;
 }

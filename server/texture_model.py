@@ -42,7 +42,7 @@ def runtime():
     bank=np.load(DIRECTORY/'donors-v1.npz',allow_pickle=False)
     return model,{k:bank[k] for k in bank.files},manifest
 
-def choose_donors(score,harmony,style,density,variant,bank):
+def choose_donors(score,harmony,style,density,variant,bank,structured=False):
     from .meter_grid import score_grid
     grid=score_grid(score);bars=harmony['bars'];starts=harmony['phraseStarts']
     pieces=[]
@@ -61,12 +61,17 @@ def choose_donors(score,harmony,style,density,variant,bank):
             query=onsets.reshape(16,4).sum(axis=1)
             donor=bank['melody'];similarity=(donor@query)/(np.linalg.norm(donor,axis=1)*np.linalg.norm(query)+1e-7)
             target=(1.1,1.65,2.2)[density]
+            if structured:
+                # Quiet openings and phrase endings; support active interiors.
+                target*=.8 if offset==0 else 1.05
+                if offset+4>=len(group):target*=.85
             if len(local)/max(len(window),1)>8:target*=.65
             target_sync={'lyrical':.45,'flowing':.6,'syncopated':.78}[style]
             stats=bank['stats'];cost=1-similarity+.38*np.abs(stats[:,0]-target)+.3*np.abs(stats[:,2]-target_sync)+.12*np.maximum(0,stats[:,1]-2.4)
             cost[(stats[:,0]<.4)|(stats[:,1]>3.5)]=100
             candidates=np.argsort(cost,kind='stable')[:8]
-            pieces.append({'bars':window,'left':left,'length':length,'candidates':candidates,'costs':cost,'onsets':len(local)})
+            contour=tuple((round((n['startTick']-left)/score['divisions']*2)/2,n['midi']-local[0]['midi']) for n in local) if local else ()
+            pieces.append({'bars':window,'left':left,'length':length,'candidates':candidates,'costs':cost,'onsets':len(local),'motifKey':(len(window),contour)})
     if not pieces:return []
     values=[float(pieces[0]['costs'][i])+.07*abs(j-variant) for j,i in enumerate(pieces[0]['candidates'])];history=[]
     for p,previous in zip(pieces[1:],pieces):
@@ -78,11 +83,18 @@ def choose_donors(score,harmony,style,density,variant,bank):
     best=min(range(len(values)),key=lambda n:(values[n],n));path=[best]
     for back in reversed(history):best=back[best];path.append(best)
     for p,index in zip(pieces,reversed(path)):p['donor']=int(p['candidates'][index])
+    if structured:
+        motifs={}
+        for p in pieces:
+            key=p['motifKey']
+            if p['onsets']>=4 and key in motifs:
+                reference=motifs[key];p['donor']=reference['donor'];p['motifOf']=reference['bars'][0]['number']
+            elif p['onsets']>=4:motifs[key]=p
     return pieces
 
-def infer(score,harmony,style,density,variant):
+def infer(score,harmony,style,density,variant,structured=False):
     import torch
-    model,bank,manifest=runtime();pieces=choose_donors(score,harmony,style,density,variant,bank)
+    model,bank,manifest=runtime();pieces=choose_donors(score,harmony,style,density,variant,bank,structured)
     rolls=[];chords=[];windows=[]
     for piece in pieces:
         donor=bank['rolls'][piece['donor']].astype(np.float32)
@@ -116,7 +128,7 @@ def infer(score,harmony,style,density,variant):
                 if pitch==129:break
                 if not 0<=pitch<=127:continue
                 pitches.append(pitch);durations.append(int(''.join(map(str,map(int,item[1:]))),2)+1)
-            if pitches:proposals.append({'tick':piece['left']+(offset+frame)*step,'pitches':pitches,'length':min(durations)*step})
+            if pitches:proposals.append({'tick':piece['left']+(offset+frame)*step,'pitches':pitches,'length':min(durations)*step,'tones':[{'midi':p,'length':d*step} for p,d in zip(pitches,durations)]})
     for p in pieces:
-        song,phrase=map(int,bank['references'][p['donor']]);references.append({'firstMeasure':p['bars'][0]['number'],'bars':len(p['bars']),'donor':p['donor'],'sourceSongIndex':song,'sourcePhraseIndex':phrase})
+        song,phrase=map(int,bank['references'][p['donor']]);references.append({'firstMeasure':p['bars'][0]['number'],'bars':len(p['bars']),'donor':p['donor'],'sourceSongIndex':song,'sourcePhraseIndex':phrase,'motifOf':p.get('motifOf')})
     return proposals,references,manifest

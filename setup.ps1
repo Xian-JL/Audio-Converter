@@ -24,7 +24,12 @@ if ($LASTEXITCODE) { throw 'Accompaniment dependencies failed.' }
 if ($LASTEXITCODE) { throw 'Accompaniment resource setup failed.' }
 & $projectPython scripts\generate_test_fixtures.py
 if ($LASTEXITCODE) { throw 'Test fixture preparation failed.' }
-if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw 'Install Node.js 22.12+ (or compatible newer Node), then rerun setup.ps1.' }
+if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath 'dist\index.html') -and (Test-Path -LiteralPath 'dist\app-version.json') -and ((Get-Content -LiteralPath 'dist\app-version.json' -Raw | ConvertFrom-Json).version -eq (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version)) {
+    Write-Host 'Reuse prebuilt frontend. Node.js is not required for local playback.'
+    Write-Host 'Ready. Run .\start.ps1, then open http://127.0.0.1:8765' -ForegroundColor Green
+    exit 0
+}
+if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw 'Install Node.js 22.12+ (or use a prebuilt bundle), then rerun setup.ps1.' }
 if (-not (Test-Path -LiteralPath 'node_modules\vite\package.json') -or -not (Test-Path -LiteralPath 'node_modules\opensheetmusicdisplay\package.json') -or -not (Test-Path -LiteralPath 'node_modules\tone\package.json')) {
     npm.cmd ci
     if ($LASTEXITCODE) { throw 'Frontend dependencies failed.' }

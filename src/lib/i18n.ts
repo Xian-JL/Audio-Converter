@@ -125,6 +125,11 @@ export const zh: typeof en = {
   beatUnavailable: '暂无节拍分析，请使用手动网格，或运行 setup-rhythm.ps1 后重新分析。'
 };
 export function translatedError(message: string, text: typeof en) {
+  if(text===zh){
+    const extra:[string,string][]=[['This is not the original audio','此文件与工程的原音频不一致。请选择当时使用的原文件；现有乐谱已保留。'],['Project exceeds','工程超过大小限制（最大 32 MB）。'],['Unsupported project','不支持此工程格式。请打开本应用保存的 .acproject.json 文件。'],['The original score identity','工程校验失败，文件可能损坏或版本不兼容。现有乐谱已保留。'],['The saved harmony identity','工程中的和弦与当前版本不兼容，现有乐谱已保留。'],['Invalid melody edit','音符修改无效，请重新选择。'],['Notes must stay','音符不能超出音频范围或相互重叠；MIDI 音高须为 0–127 的整数。'],['Only consecutive notes','只能合并相邻且音高相同的两个音符。'],['Choose another downbeat','请先选择另一个第一拍参考，再删除或合并此音符。'],['Split time must','拆分时间必须位于选中音符内部。']];
+    const match=extra.find(([prefix])=>message.startsWith(prefix));if(match)return match[1];
+    if(message.startsWith('Invalid ')&&message.includes('project'))return '工程数据无效，现有乐谱已保留。';
+  }
   const messages: [string, keyof typeof en][] = [
     ['Restart the local service','restartService'], ['GAME model','gameMissing'],
     ['Beat analysis','beatUnavailable'],

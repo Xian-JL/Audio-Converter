@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: python -m pip install 'Flask>=2.3,<4' numpy
+      - run: python -m pip install 'Flask>=2.3,<4' numpy packaging
       - run: python scripts/generate_test_fixtures.py
       - run: python -m unittest discover -s tests -p test_melody_score.py
       - run: python -m unittest discover -s tests -p test_basic_harmony.py
@@ -27,3 +27,4 @@ jobs:
       - run: python -m unittest discover -s tests -p test_workspace.py -k edit
       - run: python -m unittest discover -s tests -p test_workspace.py -k repeated_phrase
       - run: python -m unittest discover -s tests -p test_workspace.py -k project_restores
+      - run: python -m unittest discover -s tests -p test_packaging.py

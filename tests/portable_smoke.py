@@ -17,7 +17,7 @@ runtime=Path(sys.executable).resolve().parent
 assert all(Path(m.__file__).resolve().is_relative_to(runtime) for m in (np,torch,onnxruntime,librosa,soundfile))
 assert service.ROOT==runtime.parent
 health=service.app.test_client().get('/api/health').json
-assert health['ready'] and health['textureReady'] and health['appVersion']=='0.3.0',health
+assert health['ready'] and health['textureReady'] and health['appVersion']=='0.3.1',health
 result=GameTranscriber().transcribe(np.zeros(44100,np.float32),44100)
 assert result['duration']==1 and result['engine']=='game'
 source={'engine':'game','sourceSha256':'a'*64,'engineSignature':{'test':'portable'},'duration':4,'notes':[{'id':f'gf-{i+1:06d}','start':i,'end':i+.8,'midi':60+i,'midiFloat':float(60+i)} for i in range(4)]}

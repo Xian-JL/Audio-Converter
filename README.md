@@ -37,7 +37,7 @@ A complete portable folder runs with its own **Start.cmd**, without an installed
 Maintainers can build a portable folder after Setup and a frontend build:
 
 ```powershell
-.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.0 --zip release/LocalAudio-0.3.0.zip
+.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.1 --zip release/LocalAudio-0.3.1.zip
 ```
 
 The output directory must not exist. The packager collects the installed dependency closure, Python runtime, local models, tools, built frontend and licenses, with SHA-256 provenance. User songs, projects and runtime jobs are excluded. Copy/compress the entire folder; this offline distribution is much larger than source alone.

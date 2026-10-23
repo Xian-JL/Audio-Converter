@@ -27,7 +27,7 @@ cd Audio-Converter
 维护者可在完成 Setup 与前端构建后生成便携目录：
 
 ```powershell
-.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.0 --zip release/LocalAudio-0.3.0.zip
+.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.1 --zip release/LocalAudio-0.3.1.zip
 ```
 
 输出目录须不存在。打包只收集运行所需资源和依赖闭包，包含许可证及 SHA-256 清单，不带用户歌曲、工程或任务缓存。离线包体积明显大于源码；将整个目录复制或压缩后交付，不要只复制启动文件。

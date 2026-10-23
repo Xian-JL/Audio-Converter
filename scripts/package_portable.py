@@ -14,13 +14,13 @@ import zipfile
 from packaging.requirements import Requirement
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='0.3.0'
+VERSION='0.3.1'
 
 def runtime_file(path):
     """Retain licenses even when they live under an upstream include directory."""
     if '__pycache__' in path.parts or path.suffix=='.pyc' or path.name=='direct_url.json':return False
     if 'licenses' in path.parts or path.name.lower().startswith(('license','copying','notice')):return True
-    return not any(part in ('tests','test','include','benchmarks') for part in path.parts) and path.suffix not in ('.h','.hpp','.c','.cpp','.cu','.pyi')
+    return not any(part in ('tests','test','include','benchmarks') for part in path.parts) and path.suffix not in ('.h','.hpp','.c','.cpp','.cu')
 
 def archive_bundle(destination,archive):
     """Package only current runtime files; leave staging/development files intact."""
@@ -35,13 +35,14 @@ def archive_bundle(destination,archive):
         if relative.parts[0]=='runtime' and not runtime_file(relative):continue
         if relative.parts[0]=='dist' and relative.as_posix() not in source_dist:continue
         files.append((relative.as_posix(),path))
-    manifest={**old,'files':{}}
+    manifest={**old,'version':VERSION,'files':{}}
+    prefix='LocalAudio-'+VERSION
     archive.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(archive,'x',compression=zipfile.ZIP_DEFLATED,compresslevel=1) as output:
         for name,path in files:
             with path.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
-            manifest['files'][name]={'bytes':path.stat().st_size,'sha256':digest};output.write(path,destination.name+'/'+name)
-        output.writestr(destination.name+'/bundle-manifest.json',json.dumps(manifest,indent=2))
+            manifest['files'][name]={'bytes':path.stat().st_size,'sha256':digest};output.write(path,prefix+'/'+name)
+        output.writestr(prefix+'/bundle-manifest.json',json.dumps(manifest,indent=2))
     print(json.dumps({'archive':str(archive),'files':len(files),'MiB':round(archive.stat().st_size/1048576,2),'unpackedMiB':round(sum(f['bytes'] for f in manifest['files'].values())/1048576,2)}),flush=True)
 
 def distributions():

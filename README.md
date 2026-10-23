@@ -1,8 +1,8 @@
 # Audio Converter · v0.2
 
-[简体中文](README.zh-CN.md) · [Specification](SPEC.md) · [Third-party credits](THIRD_PARTY.md) · [Deployment](DEPLOYMENT.md)
+[简体中文](README.zh-CN.md) · [Specification](SPEC.md) · [Third-party credits](THIRD_PARTY.md)
 
-A local audio-to-score workspace for MP3/FLAC playback, GF singing-melody transcription and melody-based piano accompaniment. English and Chinese UI. Analysis runs in a Python service on the same computer; a static website alone cannot run the models.
+A local audio-to-score workspace for MP3/FLAC playback, GF singing-melody transcription and melody-based piano accompaniment. English and Chinese UI. The browser, Python service and models run on your computer. **No Oracle, cloud account, hosting subscription or API key is required.** Public deployment was cancelled; GitHub distributes the source for local use.
 
 ## Features
 
@@ -14,18 +14,33 @@ Choose independent treble and bass instruments from 12 local sampled banks: gran
 
 Browse fixed A4 score pages, click a measure to play from it, and automatically follow the active measure during score or original-track playback. Download a page as PNG or all page PNGs as one ZIP. Images are 2480×3508 pixels and named `《Track title》Page_x.png`.
 
-## Run locally
+## First-time installation on Windows
 
-The currently tested desktop setup is Windows, Python 3.11+ and Node.js 22.12+ or a compatible newer version.
+Install **Python 3.11+** and **Node.js 22.12+** or a compatible newer version, and make both available in your PATH. Windows is the currently tested platform; these launch scripts are not macOS/Linux installers. Inference runs on CPU and does not require a dedicated GPU. Larger recordings require more available memory.
+
+With Git installed, open PowerShell and run:
 
 ```powershell
 git clone https://github.com/Xian-JL/Audio-Converter.git
 cd Audio-Converter
 .\Setup.cmd
+```
+
+Without Git, use the repository's **Code → Download ZIP**, extract it, and double-click **Setup.cmd** inside the extracted project folder.
+
+Keep the setup window open until it reports completion. Setup prepares the Python environment and frontend dependencies, downloads missing models/FFmpeg, verifies instrument samples, generates test fixtures if absent, and builds the application. Internet access is required for missing installation resources. Compatible packages and verified files are reused when you rerun setup. Model weights, FFmpeg binaries, Python environments and node_modules are installed locally rather than committed to GitHub.
+
+## Everyday use
+
+Double-click **Start.cmd**, or run the following from the project folder:
+
+```powershell
 .\Start.cmd
 ```
 
-Open **http://127.0.0.1:8765** and keep the terminal running. Setup reuses compatible installed packages and verified assets. Missing resources are downloaded from their upstream sources. Model weights, FFmpeg binaries, Python environments and node_modules are not Git source files and are not committed.
+Open **http://127.0.0.1:8765** in your browser. Keep the terminal open while using the app; press **Ctrl+C** in it to stop the service. After the first successful setup, ordinary use only needs Start.cmd and can run offline. Switch to Chinese with the top-right language control.
+
+Do not open index.html directly. `npm run dev` starts only the development frontend; it does not replace the Python service started by Start.cmd.
 
 For model repair, use `setup-game.ps1` or `SetupTexture.cmd`. Instrument preparation is included in Setup and is also available through `scripts/instrument_resources.py`. Once prepared, analysis and instrument playback use local resources.
 
@@ -35,11 +50,20 @@ Apply musical settings, choose a file, wait for the melody, correct the downbeat
 
 Refresh clears audio jobs and generated versions. Some chord settings and the last downbeat reference can be restored by source fingerprint in the same browser. Export images and chord/arrangement JSON before closing to retain them. The 60/40 mix is a control-level ratio, not a measured loudness ratio.
 
-## Hosting status
+## Updating and troubleshooting
 
-This release is a **desktop/local service**, not an operational public inference service. Sites/Cloudflare can host a public frontend, but Python/FFmpeg/ONNX/PyTorch inference needs a separate compute host. Do not expose the desktop Flask service directly as an anonymous shared backend: its single-active-job lifecycle and loopback checks need multi-user adaptation first.
+Stop the running service before updating. Git users can pull the new source, rerun Setup.cmd, start Start.cmd and refresh the browser. ZIP users should extract the new source to a project folder and run Setup.cmd there. You do not need to rerun setup for every song.
 
-No backend host, paid subscription or public processing endpoint has been provisioned by this source release. See [DEPLOYMENT.md](DEPLOYMENT.md) for the comparison with AI Price Atlas and confirmed hosting constraints. A public source repository does not mean public inference deployment is complete.
+| Symptom | What to check |
+| --- | --- |
+| Browser cannot connect | Start.cmd is still running; use exactly `http://127.0.0.1:8765` |
+| Missing models/resources | Run Setup.cmd; a clone/ZIP intentionally does not contain model binaries |
+| Resource download failed | Check connectivity to the upstream source and rerun Setup.cmd; valid completed resources are reused |
+| Service is already running / port 8765 in use | Use the existing app, or close its previous service terminal before restarting |
+| Page requests a service restart after an update | Stop the old service, run Start.cmd again and refresh |
+| Rich accompaniment is unavailable for the chosen meter | Rich textures currently support 4/4; basic block chords remain available |
+
+The service listens on local loopback only. `127.0.0.1` on another device means that other device itself. Each user installs and runs their own copy; a public source repository is not a shared processing website.
 
 ## Development and tests
 

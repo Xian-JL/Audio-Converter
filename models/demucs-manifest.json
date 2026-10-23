@@ -1,0 +1,7 @@
+{
+  "source": "https://huggingface.co/StemSplitio/htdemucs-ft-vocals-onnx/resolve/2ef0d757d3e226d0da85fb8c71514f464fcabdd0/htdemucs_ft_vocals_fp16weights.onnx",
+  "bytes": 165612636,
+  "sha256": "0cbe651f535415c9d26a7bb614f7d322dd5a080fa0298f2e50f478030a994dce",
+  "architecture": "HTDemucs FT vocal specialist; FP16 stored weights, FP32 computation",
+  "license": "MIT"
+}

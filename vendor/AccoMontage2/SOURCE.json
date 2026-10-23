@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/billyblu2000/AccoMontage2",
+  "commit": "39184ae5cd8be1de289d116d12b69892a034f1b6",
+  "sha256": {
+    "LICENSE": "82b93171845ce98492cc6eb1c9257fc80407cdc8ed2242611114cfa3eacdb68c",
+    "chorderator/utils/models/DP.py": "d2b2505fdea45fe1a885982c9f0f7aa18d29610d51cb312a6676d3c68b16891e",
+    "chorderator/utils/structured.py": "1b8cc19204bb5cc6fff16547ad90e3058407c300411d9246f6ac72e9b9d29135",
+    "chorderator/utils/constants.py": "0593ec22a37c8efcde17ebe4463c8c656932e0f1ad7e10b5ca60e269ac621774",
+    "chorderator/static/representatives.pcls": "b41a99ae8d0c23ddbe7a93d4e70ee911eedb020f34f72ef7bfce0a96180d7f16",
+    "chorderator/static/transition_score.mdch": "2d7f07e414c9ea77b4930e91b029ac99a67ad2c74ad07497f577dc59a8b2b5f3",
+    "chorderator/static/new_major_score(no dup, no melody, no concat).mdch": "7d36156abc0ab615677cfb3fb053968c15d60f5b1ffc6282131dedf721551405",
+    "chorderator/static/minor_score.mdch": "500a8ab0e5c3d0d33119dbbc9de03457e8336c88844fcb11e6f4e92ae6a98847",
+    "chorderator/chords/Chord.py": "f82e9ceb64c6b11beb3c288820ee85f79267cc5b7917a9503cb18fb12996b629",
+    "chorderator/chords/ChordProgression.py": "d5697104391eb2b09326dc5a94709f99e6ef9acf12f9f91846392175b9db4f75"
+  }
+}

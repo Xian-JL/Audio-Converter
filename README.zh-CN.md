@@ -1,0 +1,79 @@
+# Audio Converter · v0.2
+
+[English](README.md) · [部署说明](DEPLOYMENT.md) · [第三方来源](THIRD_PARTY.md)
+
+本地音频转谱与钢琴伴奏工作台。支持 MP3/FLAC、原曲播放与下载、GF 演唱旋律转谱、人工定位第一拍、基本和弦、左手丰富伴奏、双谱表试听和导出。默认英文，可切换中文。音频只在本机处理。
+
+## 启动
+
+双击 **Start.cmd**，打开 **http://127.0.0.1:8765**。此电脑已配置完成。关闭终端或按 Ctrl+C 可停止服务；更新后请重新启动服务并刷新网页。
+
+新环境首次运行 **Setup.cmd**。需要 Windows、Python 3.11+、Node.js 22.12+ 或兼容更新版本。安装会复用兼容包及校验通过的模型；只有初次准备或修复资源需要联网，处理音频不需要联网。
+
+## 使用
+
+左侧填写 BPM、拍号与调并应用，选择一个不超过 100 MB 的 MP3/FLAC。原曲可先播放和下载，分析完成后右侧显示旋律谱。
+
+若小节强拍不对，点击“定位小节第一拍”，在旋律线上选择一个确定的第一拍，点击“重构乐谱”。原版和重构版分别保留，可切换。重构只改变小节网格，不改变 GF 音高与实际演奏时间。
+
+生成基本和弦后，可修改、锁定和弦、调整乐句及时间偏移。然后选择抒情、流动或轻切分倾向、密度与备选，生成丰富伴奏。可以在柱式对照和多个编配之间切换，当前版本同时用于谱面、钢琴播放和导出。丰富伴奏当前支持 4/4。
+
+点击任意小节即可从该小节播放，也可通过小节选择框跳转。默认旋律/伴奏电平为 60/40。高音谱表为人声，谱面高八度书写、试听音高不变；低音谱表为新编伴奏。高音和低音可分别选择钢琴、吉他、弦乐、管乐等 12 种本地采样乐器，默认电平保持 60/40。切换音色不改变音符或节奏。
+
+页面刷新会清除音频任务及当前生成版本；同一来源的和弦配置和第一拍参考可在浏览器恢复。需要保留的结果请在关闭前导出。
+
+乐谱采用固定 A4 分页，网页和导出使用同一套页码。可在暂停时手动翻页；播放乐谱或原曲时会自动显示当前小节所在页。“下载此页 PNG”导出当前页，“导出全部页”一次下载包含各页 PNG 的 ZIP，文件按《曲名》Page_1.png、Page_2.png 顺序命名。PNG 为 2480×3508 像素，包含曲名、参数、当前音色及页码。图片替代原 MusicXML 下载。
+
+播放、进度和两谱表音色集中在悬浮控制栏。“和弦与编配”默认收起，展开即可使用原有生成、修改、锁定及 JSON 导出；第一拍定位仍保留直接入口。分页浏览不改变音频位置，播放时由系统跟随当前小节。
+
+## 维护与验证
+
+```powershell
+npm.cmd run build
+npm.cmd test
+node tests/playback.mjs
+node tests/export.mjs
+```
+
+网页回归使用 `tests/serve_ui.py` 的独立临时任务，不使用真实工作任务。先运行 `.venv\Scripts\python.exe tests/serve_ui.py 8765`，再运行 `node tests/ui.mjs`、`node tests/downbeat.mjs` 、`node tests/layout.mjs`、`node tests/pagination.mjs` 和 `node tests/instruments.mjs`。这几个开发测试需另有 Playwright/Chromium；当前电脑使用已有 Codex 浏览器运行时，不增加产品依赖。`PLAYWRIGHT_PACKAGE` 可指定 Playwright 的 package.json，`TEST_BROWSER_PATH` 可指定浏览器程序。测试音频为静音文件，公开夹具由合成脚本生成，不发布本地歌曲及其实测旋律；仅用于软件回归，不代表试听质量。
+
+新增音色资源由 `scripts/instrument_resources.py` 准备，Setup.cmd 已包含；资源就绪后所有音色均可离线使用。模型修复分别运行 `setup-game.ps1` 或 `SetupTexture.cmd`，完整安装使用 `Setup.cmd`。保留 `.venv`、`node_modules`、`models`、`tools` 和 `dist`，可直接启动及继续构建；不要把这些运行资源当作旧实验删除。
+
+## 项目边界
+
+这是本机网页与本机 Python 服务，本机模式不上传音频。旋律识别和自动伴奏仍有误差；和声由旋律编写，不还原原曲伴奏。BPM、拍号、调及第一拍由用户确认。详细规范见 [SPEC.md](SPEC.md)，发布验证与清理记录见 [RELEASE.md](RELEASE.md)。
+
+## 从 GitHub 安装
+
+```powershell
+git clone https://github.com/Xian-JL/Audio-Converter.git
+cd Audio-Converter
+.\Setup.cmd
+.\Start.cmd
+```
+
+公开工程包含前端、Python 服务、下载脚本、测试、文档与许可来源；不提交模型权重、FFmpeg 程序、依赖环境、用户歌曲或其实测音符 JSON。Setup 会准备缺失资源，并在夹具缺失时生成确定性的合成测试数据，不覆盖本地已有实测夹具。
+
+公开源码不等于公网推理已经上线。目前 Sites/Cloudflare 可以托管前端，完整推理仍需单独的计算主机。当前桌面服务的单任务生命周期、来源检查需要先做多用户适配，不能直接开放给匿名访客。部署进度与免费方案限制见 [DEPLOYMENT.md](DEPLOYMENT.md)。
+
+GitHub Actions 仅进行前端构建、Node 检查与轻量记谱/和弦回归，不下载大型模型；完整本机测试仍需安装资源。
+
+## 借鉴的开源成果
+
+| 项目 | 在本项目中的作用 | 许可与来源 |
+| --- | --- | --- |
+| [GAME](https://github.com/openvpi/GAME) | 歌唱旋律 ONNX 模型与适配的 GF 上下文分块驱动 | 1.0.3，MIT，许可证保留 |
+| [Demucs](https://github.com/facebookresearch/demucs) / [ONNX 导出](https://github.com/StemSplit/demucs-onnx) | 增强人声分离 | MIT，固定导出与哈希保留 |
+| [Ultimate Vocal Remover / MDX](https://github.com/Anjok07/ultimatevocalremovergui) | 原分离模型、配置和资料 | 下载来源与校验保留 |
+| [AccoMontage2](https://github.com/billyblu2000/AccoMontage2) | 基本和弦资料与适配搜索 | MIT，固定提交及资料来源保留 |
+| [AccoMontage](https://github.com/zhaojw1998/AccoMontage) | 预训练织体 VAE、适配检索与左手缩编 | MIT 源码，保留四个原始推理模块 |
+| [Salamander / Tonejs audio](https://github.com/Tonejs/audio/tree/master/salamander) | Alexander Holm 的 Yamaha C5 钢琴采样 | CC BY 3.0，声明保留 |
+| [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments) | N. P. Brosowsky 整理的新增乐器采样 | 采样 CC BY 3.0，收集者及原贡献者声明保留 |
+| [OpenSheetMusicDisplay](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay) | 绘谱与分页 | BSD-3-Clause |
+| [Tone.js](https://github.com/Tonejs/Tone.js) | 采样播放与共享时钟 | MIT |
+| [FFmpeg](https://ffmpeg.org/) | 验证、解码与 MP3 转换 | 安装二进制的 GPLv3 声明保留，仓库不分发该二进制 |
+| React、Vite、TypeScript、Flask、ONNX Runtime、PyTorch | 应用、构建与推理基础 | 各自上游许可 |
+
+人工第一拍、时间映射、和弦约束、织体检索/缩编、界面及图片导出是集成与适配工作，不宣称从零训练模型，也不是未经改动的完整 AccoMontage。详细提交、哈希、素材与模型许可范围见 THIRD_PARTY 和各资源清单。
+
+仓库设置为公开。本次未为原创部分另选项目许可证；第三方代码与素材继续适用各自原许可。原始训练曲目不因源码许可自动取得独立授权。

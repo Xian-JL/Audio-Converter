@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {clipEvents,scheduledTime} from '../src/lib/playbackTimeline.ts';
+const events=[{start:3,end:5,pitches:[48,52,55],staff:2},{start:1.97,end:3.7,pitches:[64],staff:1},{start:1.97,end:4,pitches:[48,52,55],staff:2}];
+const clipped=clipEvents(events,2,4);
+assert.deepEqual(clipped.map(e=>[e.start,e.end,e.staff]),[[2,3.7,1],[2,4,2],[3,4,2]]);
+const first=scheduledTime(clipped[0].start,2,100.08,100),second=scheduledTime(clipped[1].start,2,100.08,100);
+assert.equal(first,second);assert.equal(first,100.08);
+assert.equal(scheduledTime(3,2,100.08,100),101.08);
+assert.equal(scheduledTime(2,2,100.08,100.2),100.205);
+assert.deepEqual(clipEvents(events,5,6),[]);
+console.log('Shared scheduling clock, ordered clipping and seek sustain passed.');

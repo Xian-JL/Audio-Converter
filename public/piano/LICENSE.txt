@@ -1,0 +1,6 @@
+Salamander Grand Piano recordings by Alexander Holm, Yamaha C5.
+License: Creative Commons Attribution 3.0
+https://creativecommons.org/licenses/by/3.0/
+Source: Tonejs/audio salamander folder, revision efd8296360f9526e379bfbe5c1698ff54d6a1d34
+The local bank uses 30 compressed single-layer anchor samples; Tone.Sampler repitches intervening keys.
+See UPSTREAM-NOTICE.txt for the original collection notice.

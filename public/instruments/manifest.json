@@ -1,0 +1,443 @@
+{
+  "repository": "https://github.com/nbrosowsky/tonejs-instruments",
+  "revision": "622c2f1c32c8cfce4158ddc3eb26e518ddef37e5",
+  "license": "CC BY 3.0 (samples); MIT (loader, not used)",
+  "instruments": {
+    "guitar-nylon": {
+      "samples": {
+        "B1": "B1.mp3",
+        "F#2": "Fs2.mp3",
+        "B2": "B2.mp3",
+        "F#3": "Fs3.mp3",
+        "B3": "B3.mp3",
+        "F#4": "Fs4.mp3",
+        "B4": "B4.mp3",
+        "F#5": "Fs5.mp3",
+        "A#5": "As5.mp3"
+      },
+      "files": {
+        "B1.mp3": {
+          "bytes": 126484,
+          "sha256": "6b5d9372206002e834c42db4968c679f1a8d265edcf4123923edccfc9c4a4887"
+        },
+        "Fs2.mp3": {
+          "bytes": 101444,
+          "sha256": "24892219c3c5aecd8add54ef8ada0d82b431e65f84254002395a24332ee7341b"
+        },
+        "B2.mp3": {
+          "bytes": 126484,
+          "sha256": "f96606207e6f0fb28947f29270c04998686d0146798d893f456e07026f20e680"
+        },
+        "Fs3.mp3": {
+          "bytes": 126484,
+          "sha256": "e4a4e8b9f961c8669910948ddf43b9c4027ee1623b37c558185e5421af3c7691"
+        },
+        "B3.mp3": {
+          "bytes": 76404,
+          "sha256": "9e4b3df9cda03761dc093b910000bfc68083d9ce40605fdd2af370140521f2cd"
+        },
+        "Fs4.mp3": {
+          "bytes": 76404,
+          "sha256": "33a2f0b2ccee800cae58bfdbbd2680fdabd866548efbb9e2696a5462a0e433c5"
+        },
+        "B4.mp3": {
+          "bytes": 76404,
+          "sha256": "74cbac2107e258ff27198e87081a76677ca8820e0b257db004eb979429f47469"
+        },
+        "Fs5.mp3": {
+          "bytes": 38844,
+          "sha256": "259a7b727dce9d31e12316dff887148360de02aec774ea999d47bd399388f0fe"
+        },
+        "As5.mp3": {
+          "bytes": 38844,
+          "sha256": "8b58374042aa47d7aef055afca8492a0e25faeecee9ac44fb098afff53e6cb97"
+        }
+      }
+    },
+    "violin": {
+      "samples": {
+        "A3": "A3.mp3",
+        "C4": "C4.mp3",
+        "G4": "G4.mp3",
+        "C5": "C5.mp3",
+        "G5": "G5.mp3",
+        "C6": "C6.mp3"
+      },
+      "files": {
+        "A3.mp3": {
+          "bytes": 390656,
+          "sha256": "22573e45ae1dd09043c4456ccb9835a067fee8222e7170b5d3d4c564562b98b1"
+        },
+        "C4.mp3": {
+          "bytes": 318666,
+          "sha256": "47a86f01f5a9f978e3328d72ecc3d12ad72cc18852676f655090e68c34b87d8c"
+        },
+        "G4.mp3": {
+          "bytes": 323048,
+          "sha256": "37ea8621e0217d18c832864913a5a4615208733b38c7c5fcfcb347e40c16fe67"
+        },
+        "C5.mp3": {
+          "bytes": 341202,
+          "sha256": "51315c5bce2c5186d0ac5bd69b72d632bc6188c9401a19212998fcd11ba2934a"
+        },
+        "G5.mp3": {
+          "bytes": 303642,
+          "sha256": "9de7664fafe3f81d2db6007d1ff19b0223afbfe3fe6c6dac8ad74be00105d1ec"
+        },
+        "C6.mp3": {
+          "bytes": 295504,
+          "sha256": "85c103492bd20f3bcf8eab6fd3de5f41853c98259b7d92a6a2ca169861d21f7c"
+        }
+      }
+    },
+    "cello": {
+      "samples": {
+        "C2": "C2.mp3",
+        "F2": "F2.mp3",
+        "C3": "C3.mp3",
+        "F#3": "Fs3.mp3",
+        "C4": "C4.mp3",
+        "F#4": "Fs4.mp3",
+        "C5": "C5.mp3"
+      },
+      "files": {
+        "C2.mp3": {
+          "bytes": 93306,
+          "sha256": "800cd97bcffd99fc80680d39b73d5143f7ea3188b79244bc3f1bad4845d28fb4"
+        },
+        "F2.mp3": {
+          "bytes": 95184,
+          "sha256": "8401dbde0540cad1e232251f82a400980a9962cac297549cd12aaaad2a8adcd9"
+        },
+        "C3.mp3": {
+          "bytes": 75778,
+          "sha256": "bde16914903926f7b7924756e9e28617d9357fe1f7d7085b0d06cedeb527e62a"
+        },
+        "Fs3.mp3": {
+          "bytes": 63884,
+          "sha256": "2c122909c07f67dc1db6222a6302d827bd6cf07102739fa0c4237c542bef7526"
+        },
+        "C4.mp3": {
+          "bytes": 80160,
+          "sha256": "e652c5eafaec4fb339da2595daf5554005f39357fac3f6c093b0d0f594b1012b"
+        },
+        "Fs4.mp3": {
+          "bytes": 60754,
+          "sha256": "b24296dcbc4ddd7e9f4d6fe785d28f2e92834f7fd0438f5f078b7c6413de36b6"
+        },
+        "C5.mp3": {
+          "bytes": 81412,
+          "sha256": "d2f71abde898fc86c86a252fc1a6d7316bc4dd57bb2200eacdbc41cfca38c08e"
+        }
+      }
+    },
+    "flute": {
+      "samples": {
+        "C4": "C4.mp3",
+        "E4": "E4.mp3",
+        "C5": "C5.mp3",
+        "E5": "E5.mp3",
+        "C6": "C6.mp3"
+      },
+      "files": {
+        "C4.mp3": {
+          "bytes": 190962,
+          "sha256": "d6837b9e7c524e7b733a11530d930316d85a91cd80dbba38a497047624bb63e3"
+        },
+        "E4.mp3": {
+          "bytes": 255440,
+          "sha256": "39fa9c7004bc2d168c98839475cc52448abdfb43486a11cf076b72dfcfa2b1d3"
+        },
+        "C5.mp3": {
+          "bytes": 183450,
+          "sha256": "1b6ec4d5bf2caeca80da4c53f6d9f09eb3a49e8de04588965c55ca8f00ff296d"
+        },
+        "E5.mp3": {
+          "bytes": 195970,
+          "sha256": "2d024d4cd56412bcb8cc3ecbce0736b63c9ba1d77de2e9601ba4efeda559a157"
+        },
+        "C6.mp3": {
+          "bytes": 176564,
+          "sha256": "535d1fbfaddbdb7f91c415708470f0860669c08733823212e81e98909afc9a64"
+        }
+      }
+    },
+    "clarinet": {
+      "samples": {
+        "D3": "D3.mp3",
+        "F3": "F3.mp3",
+        "D4": "D4.mp3",
+        "F4": "F4.mp3",
+        "D5": "D5.mp3",
+        "F5": "F5.mp3",
+        "D6": "D6.mp3"
+      },
+      "files": {
+        "D3.mp3": {
+          "bytes": 231026,
+          "sha256": "91e9e8ed7003c4b0f0f690df71a92236bc69edc02f2e94a5fe0a14bf7e04a808"
+        },
+        "F3.mp3": {
+          "bytes": 251058,
+          "sha256": "7c97f81bb812ffb6168d722643602cbe58a688ddfe30c524f954c9bb7a620571"
+        },
+        "D4.mp3": {
+          "bytes": 256692,
+          "sha256": "7ab866a30e53b96cf8950afdd1fedff84118a0c4e9a5a6756ef44f1b4f10b475"
+        },
+        "F4.mp3": {
+          "bytes": 282984,
+          "sha256": "2bdcbd7ad94ee0610e7253c3c116f6394370aa841f9406eef18d1b25e6559aee"
+        },
+        "D5.mp3": {
+          "bytes": 279228,
+          "sha256": "47e56dfdd2b9979cbbd3e544489fe202a0fd7f02b48a587fe9ef4fc7b5cd97d0"
+        },
+        "F5.mp3": {
+          "bytes": 293000,
+          "sha256": "115274abef1a73b7bfc218404abac42afca48a23b7a6185e72c5afbd079edb6f"
+        },
+        "D6.mp3": {
+          "bytes": 242294,
+          "sha256": "a4fe4fac1ca70abb153e38873b25a268fde68d589601fec4b5cdfa1fc4a7cf5f"
+        }
+      }
+    },
+    "bassoon": {
+      "samples": {
+        "G2": "G2.mp3",
+        "C3": "C3.mp3",
+        "G3": "G3.mp3",
+        "C4": "C4.mp3",
+        "G4": "G4.mp3",
+        "C5": "C5.mp3"
+      },
+      "files": {
+        "G2.mp3": {
+          "bytes": 170930,
+          "sha256": "278eaaebaf80e700acf9ec4f10d1caa9d08dfc71eb1251d800390e9d5abc50ec"
+        },
+        "C3.mp3": {
+          "bytes": 189710,
+          "sha256": "31462d3c86247d9ee681f6a4fc34a598f27d7578873e7867469cd6ec126751cc"
+        },
+        "G3.mp3": {
+          "bytes": 209742,
+          "sha256": "77be26d6f18e8901fa4d0713d91f553857cce1ed86cf990dbcd70a0e125cf3e5"
+        },
+        "C4.mp3": {
+          "bytes": 185954,
+          "sha256": "1819d61e1c4d027f87b7d7d0a48f00870f35cabeba20493ec06a78188fd0db93"
+        },
+        "G4.mp3": {
+          "bytes": 209116,
+          "sha256": "f19aefe8c5686d643748835d17b075cf6ebddceab2f6498053d7818f5bb28f64"
+        },
+        "C5.mp3": {
+          "bytes": 142134,
+          "sha256": "6fe4c9baea5542a92fb66339555c1716cff1843a9c4121c6d2c478fb928635e9"
+        }
+      }
+    },
+    "trumpet": {
+      "samples": {
+        "F3": "F3.mp3",
+        "C4": "C4.mp3",
+        "F4": "F4.mp3",
+        "D5": "D5.mp3",
+        "F5": "F5.mp3",
+        "C6": "C6.mp3"
+      },
+      "files": {
+        "F3.mp3": {
+          "bytes": 104574,
+          "sha256": "2068cc05c490441bf922c7d7786c4a3035d78ea1e3a9091c31410a2eed3399ca"
+        },
+        "C4.mp3": {
+          "bytes": 112086,
+          "sha256": "9273c36ea31cf1d35e92da54b1c7515ccfb9a54a0f9057756ea5be2524fec9f9"
+        },
+        "F4.mp3": {
+          "bytes": 134622,
+          "sha256": "9c6cd683952ce873491d0c01e377724ced4d909f23f64dfee7bd71c412238069"
+        },
+        "D5.mp3": {
+          "bytes": 136500,
+          "sha256": "1298bf78bb8613d9fcc6b87f414e28fb311689ab784267381f7af39f30ecb387"
+        },
+        "F5.mp3": {
+          "bytes": 138378,
+          "sha256": "74fb543716686818236f968ee94d467b524d95c0a2fc4d21d38e688c62435168"
+        },
+        "C6.mp3": {
+          "bytes": 150272,
+          "sha256": "f9508020cc26fcd443508dd5fa5eaa209328cfbd7653e8ddddb8aeadefa48bc9"
+        }
+      }
+    },
+    "trombone": {
+      "samples": {
+        "C#2": "Cs2.mp3",
+        "F2": "F2.mp3",
+        "C3": "C3.mp3",
+        "F3": "F3.mp3",
+        "C4": "C4.mp3",
+        "F4": "F4.mp3"
+      },
+      "files": {
+        "Cs2.mp3": {
+          "bytes": 179694,
+          "sha256": "1fb1206bea6830f091e2491aed17bc81723994862a4a367a53d03d0169b2db36"
+        },
+        "F2.mp3": {
+          "bytes": 311780,
+          "sha256": "bdbf13ca57bf9542934bdd8dccc463185ef6ff49c10c482d29c049b913f87ad0"
+        },
+        "C3.mp3": {
+          "bytes": 127110,
+          "sha256": "aa9dd49aa49e41ae85f3f414d5f8e4543a7890310b23f5521470bd173b783ec5"
+        },
+        "F3.mp3": {
+          "bytes": 492694,
+          "sha256": "b2c875381970336d5fba3544c324d5609dd2463ee9319c47fa910f98b86e7049"
+        },
+        "C4.mp3": {
+          "bytes": 534010,
+          "sha256": "4122ec61db4da1cf0ecfaae29ecf663cc4e25000175a8633c838568b45f5dd82"
+        },
+        "F4.mp3": {
+          "bytes": 620398,
+          "sha256": "c982e18439eb64ce7b877c934563aa17a37177d240337a2c044c8a6c48f802f6"
+        }
+      }
+    },
+    "harp": {
+      "samples": {
+        "B1": "B1.mp3",
+        "F2": "F2.mp3",
+        "C3": "C3.mp3",
+        "G3": "G3.mp3",
+        "B3": "B3.mp3",
+        "F4": "F4.mp3",
+        "C5": "C5.mp3",
+        "G5": "G5.mp3",
+        "B5": "B5.mp3"
+      },
+      "files": {
+        "B1.mp3": {
+          "bytes": 311780,
+          "sha256": "816301dcc7423f83f340ab45172218eebccb6a3f89e1ace0006b13c5f2ec6bf6"
+        },
+        "F2.mp3": {
+          "bytes": 420704,
+          "sha256": "5ada2c98c6cac04ba328413102a960fe0239d2a18b25c6955d45f8aa6ed536f9"
+        },
+        "C3.mp3": {
+          "bytes": 216628,
+          "sha256": "11d3a10ba191106b7c82e70d3929fe805b2c3dbfb5de909b05583828c40481c9"
+        },
+        "G3.mp3": {
+          "bytes": 247302,
+          "sha256": "058a84eeeba662f23659b49845adeccdac15cbb08698850df73092c9ceead7c0"
+        },
+        "B3.mp3": {
+          "bytes": 270464,
+          "sha256": "461bc54638be6b620a069a3141d1029efa068ccf288e44776a5fd727ce1316a3"
+        },
+        "F4.mp3": {
+          "bytes": 261700,
+          "sha256": "4e0486faf6e52b98ad1dcd123be9a2c177e9633c1376b538be449805c27a3281"
+        },
+        "C5.mp3": {
+          "bytes": 169678,
+          "sha256": "d585ef5b9571dc16a6d28735e6166c010d663ab6c2f6f43b8d926ccb0a1cbf73"
+        },
+        "G5.mp3": {
+          "bytes": 144012,
+          "sha256": "41ae47b853334d7106cad1bc0fc2de538b366ef0af0d6d6efd6871a4f0752a4e"
+        },
+        "B5.mp3": {
+          "bytes": 107704,
+          "sha256": "aa36e1ac8e99dc5b1c1c0b50712aa81f6531aec9d01290962ea81f415ec9d767"
+        }
+      }
+    },
+    "organ": {
+      "samples": {
+        "C2": "C2.mp3",
+        "F#2": "Fs2.mp3",
+        "C3": "C3.mp3",
+        "F#3": "Fs3.mp3",
+        "C4": "C4.mp3",
+        "F#4": "Fs4.mp3",
+        "C5": "C5.mp3",
+        "F#5": "Fs5.mp3",
+        "C6": "C6.mp3"
+      },
+      "files": {
+        "C2.mp3": {
+          "bytes": 296130,
+          "sha256": "07dcd46a3550345c2405bf82381a86fa861f35db191c6516723a0cb5c0e4c7a5"
+        },
+        "Fs2.mp3": {
+          "bytes": 299886,
+          "sha256": "36f523b4e44899fbd2683edc76269192b9038b8d42180ed5f9c05fb20358ce1f"
+        },
+        "C3.mp3": {
+          "bytes": 298008,
+          "sha256": "bf4744079c5537f4351f2f970d74267da0b80efb4e3dd7c1f78e6b6e79b8efb1"
+        },
+        "Fs3.mp3": {
+          "bytes": 296130,
+          "sha256": "deb19b1d4a728c18e8037840483e23c4a3ba0dcf07e2c507ec70813ce8775038"
+        },
+        "C4.mp3": {
+          "bytes": 298634,
+          "sha256": "6526889efa8f0656b088596c9aced36a6da51536ff2c9d509535d00ae62a0955"
+        },
+        "Fs4.mp3": {
+          "bytes": 289870,
+          "sha256": "b851c59748768a53528330d38d3432adcbadd68161a1ad0eec0648f70d0e67d6"
+        },
+        "C5.mp3": {
+          "bytes": 291748,
+          "sha256": "5fad02fe126e13bd31636d1dd62a5fb1a4dcfeb14a094833b0040727cb7ba8c6"
+        },
+        "Fs5.mp3": {
+          "bytes": 289870,
+          "sha256": "fd57eccd8959a0d81d4ae4d6c12c0ef7ac8bca8fbb3393045fb7b6ba5d396e42"
+        },
+        "C6.mp3": {
+          "bytes": 286740,
+          "sha256": "b1379532340a1c15da9a1b628e60494a94b6189bf14a89e6d17140005574fe13"
+        }
+      }
+    },
+    "xylophone": {
+      "samples": {
+        "G4": "G4.mp3",
+        "C5": "C5.mp3",
+        "G5": "G5.mp3",
+        "C6": "C6.mp3"
+      },
+      "files": {
+        "G4.mp3": {
+          "bytes": 88298,
+          "sha256": "a5a0122e3111e4ac803d529d11bcff7f0655a76946ad3892af9f57a42310a799"
+        },
+        "C5.mp3": {
+          "bytes": 82664,
+          "sha256": "84e3a114c88d5735e6d0fc26dc141283947c5b2cc791ac36c33782d747e37a0a"
+        },
+        "G5.mp3": {
+          "bytes": 62006,
+          "sha256": "427bc39ed57eeeb0266195dc6dd5b3e5efe713c9cc29634e063aaceab05a176f"
+        },
+        "C6.mp3": {
+          "bytes": 46982,
+          "sha256": "8a4e5edc7e0ba9087ef8d67d9f5e2e513a4c8350cd0939e06b0e0d5eea9c6adb"
+        }
+      }
+    }
+  }
+}

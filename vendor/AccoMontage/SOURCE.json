@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/zhaojw1998/AccoMontage",
+  "commit": "9630afe08eb2e90b0b94fcf97154d9385fda5e4c",
+  "sha256": {
+    "AccoMontage/models/amc_dl/torch_plus/train_utils.py": "7558442f8559d11ddca7301899ee41f682b43c7ef9f4afeea043da85e09d08d2",
+    "AccoMontage/models/ptvae.py": "d5c67806abb680086c3a107159cdc45b59f241dc7c2f040217205d345899e309",
+    "AccoMontage/models/amc_dl/torch_plus/module.py": "46bdfc6d13445b11a7fd2add8201e7cf2c3128e750e3f73859eb10a986b5767e",
+    "AccoMontage/models/Poly_Dis.py": "cc3afa0fbf49d633e04a84a4400b80f578a2593e0bf2ec522a121ab0aaeb43d5",
+    "LICENSE": "b1bd40f54350b5f5f4b6860854852689b3f6dad99b1d97fe9152a22757855ce0"
+  },
+  "subset": "Only four unmodified inference modules are retained. Training/retrieval wrappers are local adaptations."
+}

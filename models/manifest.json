@@ -1,0 +1,27 @@
+{
+  "mdx.onnx": {
+    "source": "https://huggingface.co/seanghay/uvr_models/resolve/main/UVR-MDX-NET-Inst_HQ_3.onnx",
+    "bytes": 66759214,
+    "sha256": "317554b07fe1ea5279a77f2b1520a41ea4b93432560c4ffd08792c30fddf9adc"
+  },
+  "mdx-metadata.json": {
+    "source": "https://raw.githubusercontent.com/Anjok07/ultimatevocalremovergui/master/models/MDX_Net_Models/model_data/model_data.json",
+    "bytes": 10826,
+    "sha256": "2a964032945a523c85ce72d5d0e1fec27a7197807fb4e8a3da9d81fea3e910ee"
+  },
+  "demucs-vocals.onnx": {
+    "source": "https://huggingface.co/StemSplitio/htdemucs-ft-vocals-onnx/resolve/2ef0d757d3e226d0da85fb8c71514f464fcabdd0/htdemucs_ft_vocals_fp16weights.onnx",
+    "bytes": 165612636,
+    "sha256": "0cbe651f535415c9d26a7bb614f7d322dd5a080fa0298f2e50f478030a994dce"
+  },
+  "demucs-LICENSE.txt": {
+    "source": "https://raw.githubusercontent.com/facebookresearch/demucs/main/LICENSE",
+    "bytes": 1087,
+    "sha256": "cf9b17822d1fcd4ff32ccbe14183386fb3adf6f2ff92dc184130823f7fc28173"
+  },
+  "demucs-onnx-LICENSE.txt": {
+    "source": "https://raw.githubusercontent.com/StemSplit/demucs-onnx/main/LICENSE",
+    "bytes": 1066,
+    "sha256": "002e90589e1030d13e3708342c89faf67b520273793b6a2c77c4d9bd9a5ec7e7"
+  }
+}

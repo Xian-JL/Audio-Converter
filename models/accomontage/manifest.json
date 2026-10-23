@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "repository": "https://github.com/zhaojw1998/AccoMontage",
+  "commit": "9630afe08eb2e90b0b94fcf97154d9385fda5e4c",
+  "archive": {
+    "url": "https://drive.usercontent.google.com/download?id=1EPj-O4dR3EWiv1kjoBo0EzM_yNoK6tNt&export=download&confirm=t",
+    "sha256": "5ed631f7e08c35172ee976d3260521c672b4981d0f7151adc436c1396e522fab"
+  },
+  "files": {
+    "model_master_final.pt": {
+      "bytes": 109254387,
+      "sha256": "eae8cd37fb0c2d830a14401d6831d50c598550f5f62b61e680d6dd4b35c1b8b7"
+    },
+    "donors-v1.npz": {
+      "bytes": 359204,
+      "sha256": "7b1bce54b88dfe9a97bb8e0726f9f0aa3459432caeca3b0b4f50e5799749f73f"
+    }
+  }
+}

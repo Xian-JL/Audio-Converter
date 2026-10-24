@@ -8,6 +8,7 @@ export interface Job {
   info?: { duration: number; sampleRate: number; channels: number; format: string; ignoredTrailingData?: boolean };
 }
 export interface ScoreData {
+  identityNotesJson?:string;
   editedNotes?:NoteInput[]; revisionKind?:'edit';
   baseFingerprint?:string;
   downbeat?:{noteId:string;time:number;phaseSeconds:number;measureNumber:number}|null;

@@ -1,5 +1,6 @@
 """Validated, reversible edits over frozen GF notes. Never reruns recognition."""
 import math
+import json
 import re
 import uuid
 from .melody_score import generate_melody_score
@@ -20,9 +21,17 @@ def notes_checked(notes,duration):
         result.append({'id':identity,'start':start,'end':end,'midi':int(midi),'midiFloat':pitch});last=end;ids.add(identity)
     return result
 
+def restore_note_identity(notes,encoded,duration):
+    if encoded is None:return notes
+    if not isinstance(encoded,str) or len(encoded)>4*1024*1024:raise ValueError('Invalid note identity data.')
+    try:raw=json.loads(encoded)
+    except (ValueError,TypeError):raise ValueError('Invalid note identity data.') from None
+    if notes_checked(raw,duration)!=notes_checked(notes,duration):raise ValueError('Note identity data does not match the melody.')
+    return raw
+
 def score_for_request(source,body,anchor=True):
     edited=body.get('editedNotes')
-    result=source if edited is None else {**source,'notes':notes_checked(edited,source['duration'])}
+    result=source if edited is None else {**source,'notes':restore_note_identity(notes_checked(edited,source['duration']),body.get('identityNotesJson'),source['duration'])}
     score=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'),body.get('anchorNoteId') if anchor else None)
     if edited is not None:score['editedNotes']=result['notes']
     return score
@@ -57,6 +66,6 @@ def edit_score(source,body):
     else:raise ValueError('Unknown note edit.')
     if any(type(n.get('start')) not in (int,float) for n in notes):raise ValueError('Invalid note start.')
     notes.sort(key=lambda n:n['start']);notes=notes_checked(notes,source['duration'])
-    score=score_for_request(source,{**body,'editedNotes':notes})
+    score=score_for_request(source,{**body,'editedNotes':notes,'identityNotesJson':None})
     score['revisionKind']='edit'
     return {'score':score,'harmony':None,'kind':'edit','selectedNoteId':selected}

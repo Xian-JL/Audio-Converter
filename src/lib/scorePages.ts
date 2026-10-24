@@ -3,7 +3,7 @@ export function songTitle(name?:string){return (name||'Score').replace(/\.(mp3|f
 export function pageFileName(title:string,page:number){return `《${title.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,120)}》Page_${page}.png`;}
 export function saveBlob(blob:Blob,name:string){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 /** Export clean engraving only; interactive hitboxes/highlighting never enter PNGs. */
-export async function pagePng(source:SVGSVGElement,title:string,subtitle:string,page:number,total:number):Promise<Uint8Array<ArrayBuffer>>{
+export async function pagePng(source:SVGSVGElement,title:string,subtitle:string,page:number,total:number,instrumentation?:[string,string]):Promise<Uint8Array<ArrayBuffer>>{
   const svg=source.cloneNode(true) as SVGSVGElement;
   svg.querySelectorAll('.measure-hit-layer,.score-hitbox').forEach(n=>n.remove());
   svg.querySelectorAll('[tabindex]').forEach(n=>{n.removeAttribute('tabindex');n.removeAttribute('role');n.removeAttribute('aria-label');});
@@ -17,7 +17,8 @@ export async function pagePng(source:SVGSVGElement,title:string,subtitle:string,
     ctx.fillStyle='#fff';ctx.fillRect(0,0,2480,3508);ctx.fillStyle='#1b2420';ctx.textAlign='center';ctx.font='500 46px "Segoe UI", "Microsoft YaHei", sans-serif';
     // Avoid clipping very long uploaded titles while retaining the complete filename.
     ctx.fillText(title,1240,90,2240);ctx.font='26px "Segoe UI", "Microsoft YaHei", sans-serif';ctx.fillStyle='#53645a';ctx.fillText(subtitle,1240,140,2240);
-    const scale=Math.min(2320/width,3190/height),w=width*scale,h=height*scale;ctx.drawImage(image,(2480-w)/2,185,w,h);
+    if(instrumentation){ctx.font='22px "Segoe UI", "Microsoft YaHei", sans-serif';ctx.fillText(`I · ${instrumentation[0]}`,1240,177,2240);ctx.fillText(`II · ${instrumentation[1]}`,1240,210,2240);}
+    const top=instrumentation?240:185,scale=Math.min(2320/width,(3375-top)/height),w=width*scale,h=height*scale;ctx.drawImage(image,(2480-w)/2,top,w,h);
     ctx.fillStyle='#53645a';ctx.font='26px "Segoe UI", "Microsoft YaHei", sans-serif';ctx.fillText(`Page ${page} / ${total}`,1240,3450);
     const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('PNG export failed')),'image/png'));
     return pngResolution(new Uint8Array(await blob.arrayBuffer()));

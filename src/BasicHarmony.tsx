@@ -19,7 +19,7 @@ export default function BasicHarmony({data,jobId,language,value,onChange,onBefor
     try{
       let settings:{locks?:Record<string,string>;phraseStarts?:number[]}={};
       if(!value&&locks===undefined){try{const stored=JSON.parse(localStorage.getItem(key)||'{}');if(stored&&typeof stored==='object'&&!Array.isArray(stored))settings=stored;}catch{settings={};}}
-      const result=await api<Harmony>(`/api/jobs/${jobId}/harmony`,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({bpm:data.bpm,meter:data.meter,key:data.key,sourceFingerprint:data.scoreFingerprint,editedNotes:data.editedNotes,anchorNoteId:data.downbeat?.noteId,chordOffsetMs:offset,locks:locks??value?.locks??settings.locks??{},phraseStarts:phraseStarts??value?.phraseStarts??settings.phraseStarts})});
+      const result=await api<Harmony>(`/api/jobs/${jobId}/harmony`,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({bpm:data.bpm,meter:data.meter,key:data.key,sourceFingerprint:data.scoreFingerprint,editedNotes:data.editedNotes,identityNotesJson:data.identityNotesJson,anchorNoteId:data.downbeat?.noteId,chordOffsetMs:offset,locks:locks??value?.locks??settings.locks??{},phraseStarts:phraseStarts??value?.phraseStarts??settings.phraseStarts})});
       if(controller.signal.aborted)return;
       if(!result.alignment||result.sourceFingerprint!==data.scoreFingerprint)throw Error('Outdated score response');
       onChange(result);setOffsetText(String(result.alignment.offsetMs));

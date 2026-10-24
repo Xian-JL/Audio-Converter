@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {chromium,browserPath} from './browser-runtime.mjs';
+import {chromium,browserPath,routeQaApi} from './browser-runtime.mjs';
 import fs from 'node:fs/promises';
 await fs.mkdir('tests/output',{recursive:true});
 import assert from 'node:assert/strict';
@@ -9,19 +9,22 @@ const base=JSON.parse(await fs.readFile('tests/fixtures/ember-score.json','utf8'
 const browser=await chromium.launch({headless:true,executablePath:browserPath()});
 const context=await browser.newContext({acceptDownloads:true,viewport:{width:1400,height:1000}}),page=await context.newPage(),errors=[],passed=[];
 page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+await routeQaApi(page);
 await page.route('**/api/reset',r=>r.fulfill({status:204}));await page.route('**/api/jobs',r=>r.fulfill({status:202,json:{id:'e'.repeat(32)}}));
+async function tools(){const tab=page.getByRole('tab',{name:'工具',exact:true});if(await tab.isVisible())await tab.click();}
+async function scorePanel(){const tab=page.getByRole('tab',{name:'乐谱',exact:true});if(await tab.isVisible())await tab.click();}
 async function load(){
   await page.goto(process.env.QA_BASE_URL||'http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();await page.getByRole('spinbutton',{name:'速度（BPM）'}).fill('68');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();await page.locator('.drop-zone[aria-disabled="false"]').waitFor();
-  await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/fixtures/ui-upload.flac');await page.waitForFunction(n=>Number(document.querySelector('.gf-score')?.dataset.mappedNotes)===n,base.noteCount);await page.locator('.score-settings summary').click();
+  await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/fixtures/ui-upload.flac');await page.waitForFunction(n=>Number(document.querySelector('.gf-score')?.dataset.mappedNotes)===n,base.noteCount);await tools();await page.locator('.score-settings summary').click();
 }
-async function request(kind,action){const response=page.waitForResponse(r=>r.url().endsWith('/'+kind));await action();const actual=await response;assert.equal(actual.status(),200);return actual.json();}
-async function choose(id){const element=page.locator(`.score-note[data-note-id="${id}"][data-anchor-onset="true"]`).first();await page.getByLabel('乐谱页码',{exact:true}).selectOption(await element.getAttribute('data-page'));await element.evaluate(e=>e.scrollIntoView({block:'center'}));await element.click();}
+async function request(kind,action){await tools();const response=page.waitForResponse(r=>r.url().endsWith('/'+kind));await action();const actual=await response;assert.equal(actual.status(),200);return actual.json();}
+async function choose(id){await scorePanel();const element=page.locator(`.score-note[data-note-id="${id}"][data-anchor-onset="true"]`).first();await page.getByLabel('乐谱页码',{exact:true}).selectOption(await element.getAttribute('data-page'));await element.evaluate(e=>e.scrollIntoView({block:'center'}));await element.click();}
 async function waitScore(score){await page.waitForFunction(({fp,n})=>{const el=document.querySelector('.gf-score');return el?.dataset.scoreFingerprint===fp&&Number(el.dataset.mappedNotes)===n&&!document.body.innerText.includes('正在绘制乐谱');},{fp:score.scoreFingerprint,n:score.noteCount});}
 async function downloadXml(){await page.getByLabel('乐谱页码',{exact:true}).selectOption('1');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'下载此页 PNG',exact:true}).click();const bytes=await fs.readFile(await(await pending).path());return {hash:createHash('sha256').update(bytes).digest('hex'),base64:bytes.toString('base64')};}
 
 async function samePng(a,b){if(a.hash===b.hash)return;const close=await page.evaluate(async([one,two])=>{const images=await Promise.all([one,two].map(async value=>{const image=new Image();image.src='data:image/png;base64,'+value;await image.decode();return image;}));const canvas=document.createElement('canvas');canvas.width=620;canvas.height=877;const ctx=canvas.getContext('2d');ctx.drawImage(images[0],0,0,620,877);const first=ctx.getImageData(0,0,620,877).data;ctx.clearRect(0,0,620,877);ctx.drawImage(images[1],0,0,620,877);const second=ctx.getImageData(0,0,620,877).data;let differences=0;for(let i=0;i<first.length;i+=4)if(Math.max(Math.abs(first[i]-second[i]),Math.abs(first[i+1]-second[i+1]),Math.abs(first[i+2]-second[i+2]))>3)differences++;canvas.width=0;return differences/(620*877)<.00005;},[a.base64,b.base64]);assert.ok(close,'Restored page differs visually');}
 async function newAnchor(id){
-  await page.getByRole('button',{name:'定位小节第一拍',exact:true}).click();await choose(id);return request('rebar',()=>page.getByRole('button',{name:'重构乐谱',exact:true}).click());
+  await tools();await page.getByRole('button',{name:'定位小节第一拍',exact:true}).click();await choose(id);return request('rebar',()=>page.getByRole('button',{name:'重构乐谱',exact:true}).click());
 }
 try{
   await load();const original=await request('harmony',()=>page.getByRole('button',{name:'生成基本和弦',exact:true}).click());
@@ -57,7 +60,7 @@ try{
   passed.push('Further corrections add independent score versions; harmony edits target the selected anchored grid.');
   await page.screenshot({path:output('downbeat-desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(400);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-  await page.getByRole('button',{name:'定位小节第一拍',exact:true}).click();await choose(id);assert.ok(await page.locator('.anchor-selected').count());await page.getByRole('button',{name:'取消定位',exact:true}).click();
+  await tools();await page.getByRole('button',{name:'定位小节第一拍',exact:true}).click();await choose(id);assert.ok(await page.locator('.anchor-selected').count());await tools();await page.getByRole('button',{name:'取消定位',exact:true}).click();
   await page.screenshot({path:output('downbeat-mobile.png'),fullPage:true});
   passed.push('390px layout supports selecting/cancelling a downbeat without horizontal page overflow.');
   await load();const restored=await request('rebar',()=>page.getByRole('button',{name:'恢复上次定位',exact:true}).click());await waitScore(restored.score);assert.equal(restored.score.downbeat.noteId,secondId);assert.equal(restored.harmony,null);

@@ -27,4 +27,5 @@ jobs:
       - run: python -m unittest discover -s tests -p test_workspace.py -k edit
       - run: python -m unittest discover -s tests -p test_workspace.py -k repeated_phrase
       - run: python -m unittest discover -s tests -p test_workspace.py -k project_restores
+      - run: python -m unittest discover -s tests -p test_workspace.py -k ensemble
       - run: python -m unittest discover -s tests -p test_packaging.py

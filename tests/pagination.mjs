@@ -1,9 +1,10 @@
-import {chromium,browserPath} from './browser-runtime.mjs';
+import {chromium,browserPath,routeQaApi} from './browser-runtime.mjs';
 import fs from 'node:fs/promises';
 await fs.mkdir('tests/output',{recursive:true});
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true,executablePath:browserPath()});
 const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await routeQaApi(page);
 await page.route('**/api/reset',r=>r.fulfill({status:204}));await page.route('**/api/jobs',r=>r.fulfill({status:202,json:{id:'f'.repeat(32)}}));
 async function settled(){await page.waitForFunction(()=>Number(document.querySelector('.gf-score')?.dataset.mappedNotes)===430&&!document.body.innerText.includes('正在绘制乐谱'),{},{timeout:60000});}
 async function download(button,path){const pending=page.waitForEvent('download',{timeout:120000});await button.click();const file=await pending;await file.saveAs(path);return file.suggestedFilename();}
@@ -21,7 +22,7 @@ try{
  const previous=mapping.find(x=>x.measure===target.measure-1);assert.ok(previous);
  await page.getByLabel('小节 / 时间',{exact:true}).selectOption(String(previous.measure));await page.waitForFunction(()=>document.querySelector('.gf-score')?.dataset.playing==='true');
  const select=page.getByLabel('播放位置',{exact:true});const opt=await page.getByLabel('小节 / 时间',{exact:true}).locator(`option[value="${target.measure}"]`).textContent();
- const score=await(await page.request.get('http://127.0.0.1:8765/api/jobs/'+ 'f'.repeat(32)+'/score?bpm=68&meter=4/4&key=C%20major')).json();const boundary=score.measures[target.measure-1].start;
+ const score=await(await page.request.get((process.env.QA_API_URL||'http://127.0.0.1:8765')+'/api/jobs/'+ 'f'.repeat(32)+'/score?bpm=68&meter=4/4&key=C%20major')).json();const boundary=score.measures[target.measure-1].start;
  await select.evaluate((input,at)=>{const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;setter.call(input,String(at));input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));},boundary-.2);await page.getByRole('button',{name:'播放乐谱',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.gf-score')?.dataset.currentPage==='2',{},{timeout:10000});await page.getByRole('button',{name:'停止',exact:true}).click();
  await page.locator('.player-card audio').evaluate(async(audio,at)=>{audio.currentTime=at;await audio.play();},boundary-.15);await page.waitForFunction(at=>document.querySelector('.player-card audio').currentTime>=at&&document.querySelector('.gf-score')?.dataset.currentPage==='2',boundary,{timeout:10000});assert.equal(await page.locator('.gf-score').getAttribute('data-playing'),'false');await page.locator('.player-card audio').evaluate(audio=>audio.pause());
  const options=await page.getByLabel('高音谱表音色',{exact:true}).locator('option').count();assert.ok(options>=11);await page.getByLabel('高音谱表音色',{exact:true}).selectOption('flute');await page.getByLabel('低音谱表音色',{exact:true}).selectOption('cello');assert.equal(await page.getByLabel('高音谱表音色',{exact:true}).inputValue(),'flute');

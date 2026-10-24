@@ -1,13 +1,14 @@
-import {chromium,browserPath} from './browser-runtime.mjs';
+import {chromium,browserPath,routeQaApi} from './browser-runtime.mjs';
 import fs from 'node:fs/promises';
 await fs.mkdir('tests/output',{recursive:true});
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true,executablePath:browserPath()});
 const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await routeQaApi(page);
 await page.route('**/api/reset',r=>r.fulfill({status:204}));await page.route('**/api/jobs',r=>r.fulfill({status:202,json:{id:'e'.repeat(32)}}));
 try{
  await page.goto('http://127.0.0.1:8765');await page.locator('.drop-zone[aria-disabled="false"]').waitFor();
- assert.equal(await page.locator('.release-tag').innerText(),'v0.3.2');
+ assert.equal(await page.locator('.release-tag').innerText(),'v0.4.0');
  for(const width of [390,768,1024,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
  await page.screenshot({path:'tests/output/home-en.png'});
  await page.getByRole('button',{name:'中文',exact:true}).click();await page.screenshot({path:'tests/output/home-zh.png'});

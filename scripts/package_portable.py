@@ -14,7 +14,7 @@ import zipfile
 from packaging.requirements import Requirement
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='0.3.2'
+VERSION='0.4.0'
 
 def runtime_file(path):
     """Retain licenses even when they live under an upstream include directory."""

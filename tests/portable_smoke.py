@@ -17,7 +17,7 @@ runtime=Path(sys.executable).resolve().parent
 assert all(Path(m.__file__).resolve().is_relative_to(runtime) for m in (np,torch,onnxruntime,librosa,soundfile))
 assert service.ROOT==runtime.parent
 health=service.app.test_client().get('/api/health').json
-assert health['ready'] and health['textureReady'] and health['appVersion']=='0.3.2',health
+assert health['ready'] and health['textureReady'] and health['appVersion']=='0.4.0',health
 result=GameTranscriber().transcribe(np.zeros(44100,np.float32),44100)
 assert result['duration']==1 and result['engine']=='game'
 source={'engine':'game','sourceSha256':'a'*64,'engineSignature':{'test':'portable'},'duration':4,'notes':[{'id':f'gf-{i+1:06d}','start':i,'end':i+.8,'midi':60+i,'midiFloat':float(60+i)} for i in range(4)]}
@@ -30,5 +30,12 @@ with tempfile.TemporaryDirectory(prefix='portable-audio-smoke-') as temporary:
     assert response.status_code==200,response.json
     assert response.json['events'] and response.json['settings']['voicing']=='layered'
     service.cancel(identifier)
+    def layer(instrument,count=1):return {'instrument':instrument,'timbre':'warm','count':count,'gain':100,'pan':0,'enabled':True}
+    ensembles=[[layer('violin',4)],[layer('piano'),layer('cello')]]
+    project={'kind':'audio-converter-project','schemaVersion':2,'source':{**source,'name':'synthetic.flac','bpm':120,'meter':'4/4','key':'C major','scoreFingerprint':score['scoreFingerprint'],'identityNotesJson':score['identityNotesJson']},'versions':[{}],'activeVersion':0,'ensembles':ensembles,'scoreLayout':'compact'}
+    imported=service.app.test_client().post('/api/projects/open',json=project)
+    assert imported.status_code==200,imported.json
+    assert imported.json['workspace']['ensembles']==ensembles
+    service.cancel(imported.json['job']['id'])
 service.RUNTIME=original_runtime
-print(json.dumps({'version':health['appVersion'],'isolatedRuntime':True,'gameSilenceInference':True,'textureSubprocessInference':True,'notes':len(response.json['events'])}))
+print(json.dumps({'version':health['appVersion'],'isolatedRuntime':True,'gameSilenceInference':True,'textureSubprocessInference':True,'projectSchemaTwoEnsembles':True,'notes':len(response.json['events'])}))

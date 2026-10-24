@@ -25,9 +25,52 @@ def source():
 PARAMS={'bpm':120,'meter':'4/4','key':'C major'}
 def project():
     raw=source();score=score_for_request(raw,PARAMS)
-    return {'kind':'audio-converter-project','schemaVersion':1,'appVersion':'0.3.2','source':{**raw,**PARAMS,'name':'test.flac','scoreFingerprint':score['scoreFingerprint']},'versions':[{}],'activeVersion':0,'textureSets':{},'instruments':['flute','cello'],'voices':[True,False],'position':1.5,'loop':{'enabled':True,'startMeasure':1,'endMeasure':2}}
+    return {'kind':'audio-converter-project','schemaVersion':1,'appVersion':'0.4.0','source':{**raw,**PARAMS,'name':'test.flac','scoreFingerprint':score['scoreFingerprint']},'versions':[{}],'activeVersion':0,'textureSets':{},'instruments':['flute','cello'],'voices':[True,False],'position':1.5,'loop':{'enabled':True,'startMeasure':1,'endMeasure':2}}
 
 class WorkspaceTests(unittest.TestCase):
+    def test_browser_whole_number_serialization_preserves_project_and_edit_identity(self):
+        payload=project();raw=source()
+        raw['notes']=[{**n,'start':float(n['start']),'end':float(i+1),'midiFloat':float(n['midi'])} for i,n in enumerate(raw['notes'])]
+        score=score_for_request(raw,PARAMS)
+        payload['source'].update(notes=raw['notes'],scoreFingerprint=score['scoreFingerprint'],identityNotesJson=score['identityNotesJson'])
+        def browser_numbers(value):
+            if isinstance(value,float) and value.is_integer():return int(value)
+            if isinstance(value,list):return [browser_numbers(v) for v in value]
+            if isinstance(value,dict):return {k:browser_numbers(v) for k,v in value.items()}
+            return value
+        saved=browser_numbers(payload);restored,root,_=normalize_project(saved)
+        self.assertEqual(root['scoreFingerprint'],score['scoreFingerprint'])
+        old=copy.deepcopy(saved);old['source'].pop('identityNotesJson')
+        self.assertEqual(normalize_project(old)[1]['scoreFingerprint'],score['scoreFingerprint'])
+        edited=edit_score(restored,{**PARAMS,'sourceFingerprint':root['scoreFingerprint'],'operation':{'kind':'update','id':'gf-000001','midi':65}})['score']
+        body=browser_numbers({**PARAMS,'editedNotes':edited['editedNotes'],'identityNotesJson':edited['identityNotesJson']})
+        self.assertEqual(score_for_request(restored,body)['scoreFingerprint'],edited['scoreFingerprint'])
+        body['editedNotes'][0]['end']=.5
+        with self.assertRaisesRegex(ValueError,'identity'):score_for_request(restored,body)
+
+    def test_legacy_project_migrates_and_schema_two_preserves_ensembles(self):
+        old=project();old['appVersion']='0.3.2';raw,root,workspace=normalize_project(old)
+        self.assertEqual(workspace['ensembles'][0],[{'instrument':'flute','timbre':'natural','count':1,'gain':100,'pan':0,'enabled':True}])
+        self.assertEqual(workspace['scoreLayout'],'compact')
+        violin={'instrument':'violin','timbre':'warm','count':4,'gain':90,'pan':-.1,'enabled':True}
+        piano={'instrument':'piano','timbre':'natural','count':1,'gain':100,'pan':-.2,'enabled':True}
+        cello={'instrument':'cello','timbre':'soft','count':1,'gain':70,'pan':.2,'enabled':True}
+        new={**old,'schemaVersion':2,'ensembles':[[violin],[piano,cello]],'scoreLayout':'standard'}
+        restored,new_root,result=normalize_project(new)
+        self.assertEqual(restored,raw);self.assertEqual(root,new_root);self.assertEqual(result['ensembles'],new['ensembles']);self.assertEqual(result['instruments'],['violin','piano']);self.assertEqual(result['scoreLayout'],'standard')
+
+    def test_invalid_ensemble_values_limits_and_layout_are_rejected(self):
+        layer={'instrument':'violin','timbre':'natural','count':1,'gain':100,'pan':0,'enabled':True}
+        base={**project(),'schemaVersion':2,'ensembles':[[layer],[layer]]}
+        for patch in ({'count':True},{'count':1.5},{'count':9},{'gain':float('nan')},{'pan':2},{'enabled':1},{'timbre':'missing'},{'instrument':'missing'}):
+            with self.assertRaises(ValueError):normalize_project({**base,'ensembles':[[{**layer,**patch}],[layer]]})
+        for staff in ([],[layer]*9,[{**layer,'count':8}]*3):
+            with self.assertRaises(ValueError):normalize_project({**base,'ensembles':[staff,[layer]]})
+        for schema in (True,3):
+            with self.assertRaises(ValueError):normalize_project({**base,'schemaVersion':schema})
+        with self.assertRaises(ValueError):normalize_project({**base,'ensembles':None})
+        with self.assertRaises(ValueError):normalize_project({**base,'scoreLayout':'unknown'})
+
     def test_edit_operations_are_immutable_and_preserve_ids(self):
         raw=source();before=copy.deepcopy(raw);score=score_for_request(raw,PARAMS)
         body={**PARAMS,'sourceFingerprint':score['scoreFingerprint']}

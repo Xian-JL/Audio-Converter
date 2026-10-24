@@ -1,4 +1,4 @@
-# Audio Converter · v0.3
+# Audio Converter · v0.4
 
 [简体中文](README.zh-CN.md) · [Specification](SPEC.md) · [Third-party credits](THIRD_PARTY.md)
 
@@ -10,9 +10,9 @@ Import one MP3 or FLAC up to 100 MiB, play the original or locally converted 320
 
 Generate basic chords from the melody, edit and lock chords, adjust phrases/alignment, and generate optional left-hand textures. Preserve the block-chord reference and separate score/arrangement versions. Rich textures currently support 4/4. This composes accompaniment; it does not recover the original backing track.
 
-Choose independent treble and bass instruments from 12 local sampled banks: grand piano, nylon guitar, violin, cello, flute, clarinet, bassoon, trumpet, trombone, harp, organ and xylophone. Default melody/accompaniment levels are 60/40. Instrument changes do not change notes or rhythm.
+Build independent treble and bass ensembles from 12 local sampled banks: grand piano, nylon guitar, violin, cello, flute, clarinet, bassoon, trumpet, trombone, harp, organ and xylophone. Each bank offers Natural, Warm, Bright and Soft processed timbres (48 total). Add layers of the same or different instruments, with quantity, enable, volume and pan controls: up to 8 layers and 16 players per staff, up to 8 players per layer. Samples are shared. Default staff levels remain 60/40; instrumentation does not change notes or rhythm.
 
-Browse fixed A4 score pages, click a measure to play from it, and automatically follow the active measure during score or original-track playback. Download a page as PNG or all page PNGs as one ZIP. Images are 2480×3508 pixels and named `《Track title》Page_x.png`.
+Compact engraving puts more measures on each A4 page; Standard density remains available. Pages fit proportionally into the remaining viewport without vertical window scrolling. Side panels scroll independently; narrow screens switch between Audio, Score and Tools. Browse score pages, click a measure to play from it, and automatically follow the active measure during score or original-track playback. Download a page as PNG or all page PNGs as one ZIP. Images are 2480×3508 pixels and named `《Track title》Page_x.png`.
 
 ## First-time installation on Windows
 
@@ -37,7 +37,7 @@ A complete portable folder runs with its own **Start.cmd**, without an installed
 Maintainers can build a portable folder after Setup and a frontend build:
 
 ```powershell
-.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.2 --zip release/LocalAudio-0.3.2.zip
+.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.4.0 --zip release/LocalAudio-0.4.0.zip
 ```
 
 The output directory must not exist. The packager collects the installed dependency closure, Python runtime, local models, tools, built frontend and licenses, with SHA-256 provenance. User songs, projects and runtime jobs are excluded. Copy/compress the entire folder; this offline distribution is much larger than source alone.
@@ -58,7 +58,7 @@ For model repair, use `setup-game.ps1` or `SetupTexture.cmd`. Instrument prepara
 
 ## Workflow and persistence
 
-The desktop workspace has three columns: source/settings on the left, playback/score in the center, and instruments/editing/downbeat/chords/export on the right. Transparent controls flank the score for page turning; narrow screens stack the panels.
+The desktop workspace has three columns: source/settings on the left, playback/score in the center, and instruments/editing/downbeat/chords/export on the right. Transparent controls flank the score for page turning; narrow screens switch panels after score generation.
 
 Apply musical settings, choose a file, wait for the melody, correct the downbeat if needed, and open **Chords & arrangement** to generate/edit chords and textures. The treble staff is written one octave above sounding pitch with an octave clef; playback retains the detected pitch. Click notes, rests, labels or measure whitespace to start playback.
 
@@ -71,6 +71,12 @@ Choose first/last measures and enable **Loop playback** to rehear a section; cli
 Layered accompaniment retains individual note durations in independent left-hand voices and adds phrase shaping, melody-responsive register and repeated-phrase motif reuse. Disable its checkbox for the compact reference. Cancelling terminates the actual CPU worker. Musical quality still needs listening evaluation.
 
 **Print & export options** supports page-range ZIP, cancellation and A4 printing / browser Save as PDF. PNGs carry a 300 dpi physical-resolution tag.
+
+## Ensemble example
+
+Choose Violin for the treble layer and set Players to 4. Keep Grand piano on bass, add another bass layer, and choose Cello. These six sampled players perform the same two staff event streams together. Every instrument has four processed timbres; Layer mix exposes individual volume and pan. Quantity uses gain compensation and small deterministic tuning/onset/stereo differences to simulate an ensemble, using the existing credited recordings.
+
+Project format 2 retains ensembles and page density. Format 1 projects migrate to one Natural player per staff. Original GF pitches and timings remain intact.
 
 ## Updating and troubleshooting
 
@@ -98,7 +104,7 @@ node tests/export.mjs
 
 Setup generates deterministic synthetic regression fixtures when fixtures are absent. The generator never overwrites existing local listening data. Private song recordings and their note-analysis JSON are excluded from Git. Committed media fixtures are generated silence. Synthetic fixtures test software invariants, not musical accuracy.
 
-GitHub Actions runs the frontend build, small Node checks and lightweight notation/harmony Python tests without downloading inference models. The full local suite requires prepared models. Browser checks additionally need Playwright/Chromium; see `tests/serve_ui.py`, `tests/ui.mjs`, `tests/downbeat.mjs`, `tests/layout.mjs`, `tests/pagination.mjs` and `tests/instruments.mjs` and `tests/workspace.mjs`. With the development frontend running, `tests/sound.mjs` additionally checks sustained instruments and scheduling pressure. `PLAYWRIGHT_PACKAGE` and `TEST_BROWSER_PATH` can point to an existing test installation; neither is a product dependency.
+GitHub Actions runs the frontend build, small Node checks and lightweight notation/harmony Python tests without downloading inference models. The full local suite requires prepared models. Browser checks additionally need Playwright/Chromium; see `tests/serve_ui.py`, `tests/ui.mjs`, `tests/downbeat.mjs`, `tests/layout.mjs`, `tests/pagination.mjs` and `tests/instruments.mjs` and `tests/workspace.mjs` and `tests/v4.mjs`. With the development frontend running, `tests/sound.mjs` and `tests/ensemble-sound.mjs` additionally check sustained instruments and scheduling pressure. `PLAYWRIGHT_PACKAGE` and `TEST_BROWSER_PATH` can point to an existing test installation; neither is a product dependency.
 
 ## Open-source foundations and attribution
 
@@ -129,3 +135,5 @@ The repository is public. An original-project license has not been selected for 
 src, server, scripts and tests contain source and regression scripts. Keep public, models, tools and vendor for samples, inference resources, media tools and upstream notices. Existing .venv and node_modules are reused rather than reinstalled during cleanup.
 
 dist is the current built frontend. tests/output is regenerable test output. release retains only the current portable ZIP, checksums and verification record. Old archives, duplicate extracted runtimes, screenshots and test projects can be removed. Store personal audio and .acproject.json files outside this repository; neither belongs on GitHub. Do not clear .runtime while a task is active.
+
+Browser regression can use an isolated API on port 8770: keep the normal frontend on 8765, run `.venv\Scripts\python.exe -B tests/serve_ui.py 8770`, and set `$env:QA_API_URL='http://127.0.0.1:8770'` before running the legacy browser scripts. `tests/v4.mjs` already forwards its API calls to that isolated service. Neither route writes to real user jobs. For offline timbre/ensemble checks, run the Vite development frontend and `node tests/ensemble-sound.mjs`.

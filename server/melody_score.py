@@ -117,7 +117,7 @@ def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
     base_fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,allow_nan=False).encode()).hexdigest()
     if anchor_note_id is not None:identity={**identity,'notationVersion':'right-downbeat-v1','anchorNoteId':anchor_note_id,'phase':grid.phase}
     fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,allow_nan=False).encode()).hexdigest()
-    return {'xml':xml,'bpm':bpm,'meter':meter,'key':key,'duration':duration,'noteCount':len(notes),'chordCount':0,'melodyOnly':True,
+    return {'identityNotesJson':json.dumps(raw,sort_keys=True,allow_nan=False),'xml':xml,'bpm':bpm,'meter':meter,'key':key,'duration':duration,'noteCount':len(notes),'chordCount':0,'melodyOnly':True,
             'engine':'game','engineSignature':result.get('engineSignature'),'sourceSha256':result.get('sourceSha256'),'scoreFingerprint':fingerprint,
             'notes':notes,'events':events,'notatedEvents':notated,'fragments':fragments,'divisions':divisions,'measures':measures,
             'baseFingerprint':base_fingerprint,'grid':{'phaseSeconds':grid.phase,'pickupTicks':grid.pickup_ticks},

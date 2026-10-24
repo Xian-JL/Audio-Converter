@@ -1,4 +1,4 @@
-# Audio Converter · v0.3
+# Audio Converter · v0.4
 
 [English](README.md) · [规格](SPEC.md) · [第三方来源](THIRD_PARTY.md)
 
@@ -27,7 +27,7 @@ cd Audio-Converter
 维护者可在完成 Setup 与前端构建后生成便携目录：
 
 ```powershell
-.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.3.2 --zip release/LocalAudio-0.3.2.zip
+.venv\Scripts\python.exe scripts/package_portable.py --output release/LocalAudio-0.4.0 --zip release/LocalAudio-0.4.0.zip
 ```
 
 输出目录须不存在。打包只收集运行所需资源和依赖闭包，包含许可证及 SHA-256 清单，不带用户歌曲、工程或任务缓存。离线包体积明显大于源码；将整个目录复制或压缩后交付，不要只复制启动文件。
@@ -52,7 +52,7 @@ cd Audio-Converter
 
 生成基本和弦后，可修改、锁定和弦、调整乐句及时间偏移。然后选择抒情、流动或轻切分倾向、密度与备选，生成丰富伴奏。可以在柱式对照和多个编配之间切换，当前版本同时用于谱面、钢琴播放和导出。丰富伴奏当前支持 4/4。
 
-点击任意小节即可从该小节播放，也可通过小节选择框跳转。默认旋律/伴奏电平为 60/40。高音谱表为人声，谱面高八度书写、试听音高不变；低音谱表为新编伴奏。高音和低音可分别选择钢琴、吉他、弦乐、管乐等 12 种本地采样乐器，默认电平保持 60/40。切换音色不改变音符或节奏。
+点击任意小节即可从该小节播放，也可通过小节选择框跳转。默认旋律/伴奏电平为 60/40。高音谱表为人声，谱面高八度书写、试听音高不变；低音谱表为新编伴奏。高音和低音可分别配置多乐器合奏。12 种本地采样乐器均提供原声、温暖、明亮、柔和四档处理音色，共 48 档；每层可设数量、启用、音量与声像。音色由既有真实采样处理生成，复用采样资源。每声部最多 8 层、16 件，单层最多 8 件；默认电平仍为 60/40。
 
 点击“保存工程”保留完整 .acproject.json：原始 GF、每次修订/重构、各版和弦与伴奏、音色、音量、播放位置和循环范围。下次点击“打开工程”继续，无需重新分析。工程默认不含音频；需要原曲对照时点击“关联原音频”，选择当时完全相同的原文件。错误文件或损坏工程不会清空现有作品。刷新前请主动保存，页面不会自动保存歌曲或工程。
 
@@ -62,9 +62,15 @@ cd Audio-Converter
 
 丰富伴奏默认使用独立左手声部，保留逐音时值，并加入句首/句尾处理、随旋律调整的音区和重复短语动机复用；取消勾选可使用紧凑对照。取消编配会结束后台 CPU 子进程。音乐效果仍需人工试听，不能保证每首歌均优于旧版。
 
-乐谱采用固定 A4 分页，网页和导出使用同一套页码。可在暂停时手动翻页；播放乐谱或原曲时会自动显示当前小节所在页。“下载此页 PNG”导出当前页，“导出全部页”一次下载包含各页 PNG 的 ZIP，文件按《曲名》Page_1.png、Page_2.png 顺序命名。PNG 为 2480×3508 像素，包含曲名、参数、当前音色及页码。图片替代原 MusicXML 下载。展开“打印与导出选项”可导出页码范围、取消进行中的导出，或打开 A4 打印/保存 PDF；PNG 带 300 dpi 标记。
+乐谱默认使用紧凑排版以增加每页小节数，也可选择标准密度。完整一页按中央区域的可用宽高等比缩放，窗口不需上下滚动；左右功能面板独立滚动，窄屏通过“音频／乐谱／工具”切换。网页和导出保持同一套 A4 页码。可在暂停时手动翻页；播放乐谱或原曲时会自动显示当前小节所在页。“下载此页 PNG”导出当前页，“导出全部页”一次下载包含各页 PNG 的 ZIP，文件按《曲名》Page_1.png、Page_2.png 顺序命名。PNG 为 2480×3508 像素，包含曲名、参数、当前音色及页码。图片替代原 MusicXML 下载。展开“打印与导出选项”可导出页码范围、取消进行中的导出，或打开 A4 打印/保存 PDF；PNG 带 300 dpi 标记。
 
-桌面采用左中右三栏：左侧为音频与乐谱参数，中间为播放和乐谱，右侧为音色、编辑、第一拍定位、和弦编配及导出。乐谱左右透明按钮翻页，窄屏自动堆叠。“和弦与编配”默认收起，展开即可使用原有生成、修改、锁定及 JSON 导出；第一拍定位仍保留直接入口。分页浏览不改变音频位置，播放时由系统跟随当前小节。
+桌面采用左中右三栏：左侧为音频与乐谱参数，中间为播放和乐谱，右侧为音色、编辑、第一拍定位、和弦编配及导出。乐谱左右透明按钮翻页，窄屏在生成乐谱后使用面板切换，保持整页可见。“和弦与编配”默认收起，展开即可使用原有生成、修改、锁定及 JSON 导出；第一拍定位仍保留直接入口。分页浏览不改变音频位置，播放时由系统跟随当前小节。
+
+## 配置合奏
+
+例如在高音选择“小提琴”，数量填 4；低音保留“三角钢琴”，点击“添加低音乐器”再选择“大提琴”，即可同时播放四把小提琴旋律与钢琴/大提琴伴奏。每层可单独调整音色，展开“独立混音”调整音量与声像。合奏数量会自动做电平补偿，模拟实例间轻微音准、起音与声像差异。
+
+保存工程同时保存合奏和页面密度。新文件使用工程格式 2；旧格式 1 可迁移为单件原声音色。打开工程不重跑识别，也不改变原 GF 音高和节奏。
 
 ## 维护与验证
 
@@ -75,7 +81,7 @@ node tests/playback.mjs
 node tests/export.mjs
 ```
 
-网页回归使用 `tests/serve_ui.py` 的独立临时任务，不使用真实工作任务。先运行 `.venv\Scripts\python.exe tests/serve_ui.py 8765`，再运行 `node tests/ui.mjs`、`node tests/downbeat.mjs` 、`node tests/layout.mjs`、`node tests/pagination.mjs` 和 `node tests/instruments.mjs`、`node tests/workspace.mjs`。音色长音与压力测试另运行开发前端，再执行 `node tests/sound.mjs`。这些开发测试需另有 Playwright/Chromium；当前电脑使用已有 Codex 浏览器运行时，不增加产品依赖。`PLAYWRIGHT_PACKAGE` 可指定 Playwright 的 package.json，`TEST_BROWSER_PATH` 可指定浏览器程序。测试音频为静音文件，公开夹具由合成脚本生成，不发布本地歌曲及其实测旋律；仅用于软件回归，不代表试听质量。
+网页回归使用独立的本机测试服务，不使用真实工作任务：保持正常网页服务在 8765，另开终端运行 `.venv\Scripts\python.exe -B tests/serve_ui.py 8770`；在执行回归的终端设置 `$env:QA_API_URL='http://127.0.0.1:8770'`。然后可运行 `node tests/workspace.mjs`、`node tests/pagination.mjs`、`node tests/downbeat.mjs`、`node tests/ui.mjs`；新布局与合奏使用 `node tests/v4.mjs`，其 API 已固定转发到测试服务。音色长音与压力检查需另启动 `npm run dev`，执行 `node tests/sound.mjs`、`node tests/ensemble-sound.mjs`。开发测试需另有 Playwright/Chromium，可用 PLAYWRIGHT_PACKAGE、TEST_BROWSER_PATH 指向现有安装，不增加产品依赖。公开音频夹具为合成静音；私人歌曲和实测旋律不提交仓库。
 
 新增音色资源由 `scripts/instrument_resources.py` 准备，Setup.cmd 已包含；资源就绪后所有音色均可离线使用。模型修复分别运行 `setup-game.ps1` 或 `SetupTexture.cmd`，完整安装使用 `Setup.cmd`。保留 `.venv`、`node_modules`、`models`、`tools` 和 `dist`，可直接启动及继续构建；不要把这些运行资源当作旧实验删除。
 

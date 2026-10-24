@@ -1,12 +1,30 @@
 """Portable data-only projects. Rebuild notation; never accept embedded HTML/XML."""
 import math
 import re
-from .editing import notes_checked, score_for_request
+from .editing import notes_checked, score_for_request, restore_note_identity
 from .basic_harmony import generate_basic_harmony
 from .chord_score import engrave_block_chords
 
 PROJECT_LIMIT=32*1024*1024
 INSTRUMENTS={'piano','guitar-nylon','cello','flute','harp','organ','violin','clarinet','bassoon','trumpet','trombone','xylophone'}
+TIMBRES={'natural','warm','bright','soft'}
+
+def ensembles_checked(value,instruments):
+    if value is None:return [[{'instrument':i,'timbre':'natural','count':1,'gain':100,'pan':0,'enabled':True}] for i in instruments]
+    if not isinstance(value,list) or len(value)!=2:raise ValueError('Invalid ensembles.')
+    result=[]
+    for staff in value:
+        if not isinstance(staff,list) or not 1<=len(staff)<=8:raise ValueError('Invalid ensemble layers (maximum 8).')
+        players=0;layers=[]
+        for layer in staff:
+            if not isinstance(layer,dict) or not isinstance(layer.get('instrument'),str) or layer['instrument'] not in INSTRUMENTS or not isinstance(layer.get('timbre'),str) or layer['timbre'] not in TIMBRES:raise ValueError('Invalid instrument or timbre.')
+            count=layer.get('count')
+            if type(count)!=int or not 1<=count<=8 or type(layer.get('enabled'))!=bool:raise ValueError('Invalid instrument quantity or enabled flag.')
+            players+=count
+            layers.append({'instrument':layer['instrument'],'timbre':layer['timbre'],'count':count,'enabled':layer['enabled'],'gain':number(layer.get('gain'),0,100),'pan':number(layer.get('pan'),-1,1)})
+        if players>16:raise ValueError('Maximum 16 players per staff.')
+        result.append(layers)
+    return result
 
 def number(value,low,high):
     if type(value) not in (int,float) or not math.isfinite(value) or not low<=value<=high:raise ValueError('Invalid project number.')
@@ -42,7 +60,7 @@ def restore_texture(item,score,harmony):
     return {**{k:item.get(k) for k in ('sourceFingerprint','harmonyFingerprint','fingerprint','model','references','generationSeconds')},'settings':settings,'events':clean_events,'writtenChords':clean_written,'xml':xml,'chordFragments':fragments}
 
 def normalize_project(payload):
-    if not isinstance(payload,dict) or payload.get('kind')!='audio-converter-project' or payload.get('schemaVersion')!=1:raise ValueError('Unsupported project format.')
+    if not isinstance(payload,dict) or payload.get('kind')!='audio-converter-project' or type(payload.get('schemaVersion'))!=int or payload['schemaVersion'] not in (1,2):raise ValueError('Unsupported project format.')
     source=payload.get('source')
     if not isinstance(source,dict):raise ValueError('Project source is missing.')
     duration=number(source.get('duration'),.001,7200)
@@ -50,16 +68,30 @@ def normalize_project(payload):
     if not isinstance(sha,str) or not re.fullmatch('[a-f0-9]{64}',sha):raise ValueError('Invalid source identity.')
     name=source.get('name')
     if not isinstance(name,str) or not 1<=len(name)<=255 or any(ord(c)<32 for c in name) or '/' in name or '\\' in name:raise ValueError('Invalid source name.')
-    original={'duration':duration,'notes':notes_checked(source.get('notes'),duration),'engine':'game','engineSignature':source.get('engineSignature'),'sourceSha256':sha}
+    original={'duration':duration,'notes':restore_note_identity(notes_checked(source.get('notes'),duration),source.get('identityNotesJson'),duration),'engine':'game','engineSignature':source.get('engineSignature'),'sourceSha256':sha}
     params={k:source.get(k) for k in ('bpm','meter','key')}
     root=score_for_request(original,params);root['sourceName']=name
+    if source.get('scoreFingerprint')!=root['scoreFingerprint'] and source.get('identityNotesJson') is None:
+        # Legacy browser JSON lost the distinction between 69.0 and 69. GAME
+        # writes float timings; try its historical encodings without changing pitches.
+        for float_times,float_pitch,zero_start in ((True,True,False),(True,True,True),(False,True,False),(True,False,False)):
+            candidate=[]
+            for n in original['notes']:
+                item={**n}
+                if float_times:item.update(start=float(n['start']),end=float(n['end']))
+                if float_pitch:item['midiFloat']=float(n['midiFloat'])
+                if zero_start and item['start']==0:item['start']=0
+                candidate.append(item)
+            test=score_for_request({**original,'notes':candidate},params)
+            if test['scoreFingerprint']==source.get('scoreFingerprint'):
+                original['notes']=candidate;root=test;root['sourceName']=name;break
     if source.get('scoreFingerprint')!=root['scoreFingerprint']:raise ValueError('The original score identity does not match. This project may be damaged or from an incompatible version.')
     saved=payload.get('versions')
     if not isinstance(saved,list) or not 1<=len(saved)<=32:raise ValueError('Invalid score versions (maximum 32).')
     versions=[]
     for i,v in enumerate(saved):
         if not isinstance(v,dict):raise ValueError('Invalid score version.')
-        score=score_for_request(original,{**params,'editedNotes':v.get('editedNotes'),'anchorNoteId':v.get('anchorNoteId')});score['sourceName']=name
+        score=score_for_request(original,{**params,'editedNotes':v.get('editedNotes'),'identityNotesJson':v.get('identityNotesJson'),'anchorNoteId':v.get('anchorNoteId')});score['sourceName']=name
         if i==0 and score['scoreFingerprint']!=root['scoreFingerprint']:raise ValueError('The first version must preserve the original GF score.')
         h=v.get('harmony');harmony=None
         if h is not None:
@@ -78,6 +110,11 @@ def normalize_project(payload):
     selected=index(payload.get('activeVersion'),len(versions))
     instruments=payload.get('instruments',['piano','piano']);voices=payload.get('voices',[True,True])
     if not isinstance(instruments,list) or len(instruments)!=2 or any(not isinstance(i,str) or i not in INSTRUMENTS for i in instruments):raise ValueError('Invalid instruments.')
+    if payload['schemaVersion']==2 and payload.get('ensembles') is None:raise ValueError('Project ensemble configuration is missing.')
+    ensembles=ensembles_checked(payload.get('ensembles'),instruments)
+    instruments=[staff[0]['instrument'] for staff in ensembles]
+    layout=payload.get('scoreLayout','compact')
+    if not isinstance(layout,str) or layout not in ('compact','standard'):raise ValueError('Invalid score layout.')
     if not isinstance(voices,list) or len(voices)!=2 or any(type(v)!=bool for v in voices):raise ValueError('Invalid voice selection.')
     loop=payload.get('loop',{'enabled':False,'startMeasure':1,'endMeasure':1});bars=len(versions[selected]['score']['measures'])
     if not isinstance(loop,dict) or type(loop.get('enabled'))!=bool:raise ValueError('Invalid loop.')
@@ -86,5 +123,5 @@ def normalize_project(payload):
     levels=payload.get('levels',[60,40])
     if not isinstance(levels,list) or len(levels)!=2:raise ValueError('Invalid voice levels.')
     levels=[number(n,0,100) for n in levels]
-    workspace={'versions':versions,'activeVersion':selected,'textureSets':textures,'instruments':instruments,'voices':voices,'levels':levels,'position':number(payload.get('position',0),0,duration),'loop':loop}
+    workspace={'versions':versions,'activeVersion':selected,'textureSets':textures,'instruments':instruments,'ensembles':ensembles,'scoreLayout':layout,'voices':voices,'levels':levels,'position':number(payload.get('position',0),0,duration),'loop':loop}
     return original,root,workspace

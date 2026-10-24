@@ -10,6 +10,7 @@ async function settled(){await page.waitForFunction(()=>Number(document.querySel
 async function download(button,path){const pending=page.waitForEvent('download',{timeout:120000});await button.click();const file=await pending;await file.saveAs(path);return file.suggestedFilename();}
 try{
  await page.goto('http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();await page.getByRole('spinbutton',{name:'速度（BPM）'}).fill('68');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();await page.locator('.drop-zone[aria-disabled="false"]').waitFor();await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/fixtures/ui-upload.flac');await settled();
+ await page.locator('.navigation-settings summary').click();
  console.log('Initial pages',await page.locator('.gf-score').getAttribute('data-page-count'));
  await page.locator('.score-settings summary').click();const response=page.waitForResponse(r=>r.url().endsWith('/harmony'));await page.getByRole('button',{name:'生成基本和弦',exact:true}).click();assert.equal((await response).status(),200);await settled();await page.locator('.score-settings summary').click();
  const count=Number(await page.locator('.gf-score').getAttribute('data-page-count'));assert.ok(count>1);assert.equal(await page.locator('.score-page:visible').count(),1);

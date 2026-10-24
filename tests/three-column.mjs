@@ -14,6 +14,7 @@ async function request(kind,action){const pending=page.waitForResponse(r=>r.url(
 try{
  await page.goto('http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();
  await page.getByLabel('速度（BPM）',{exact:true}).fill('68');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();await page.locator('.drop-zone[aria-disabled="false"]').waitFor();await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/fixtures/ui-upload.flac');await settled();
+ await page.locator('.navigation-settings summary').click();
  const root=await page.locator('.gf-score').getAttribute('data-score-fingerprint');assert.equal(await page.locator('.gf-score').getAttribute('data-mapped-notes'),'430');
  for(const width of [1280,1440,1920]){
   await page.setViewportSize({width,height:1050});const boxes=await Promise.all(['.source-panel','.score-card','.tools-panel'].map(s=>page.locator(s).boundingBox()));assert.ok(boxes[0].x+boxes[0].width<boxes[1].x);assert.ok(boxes[1].x+boxes[1].width<boxes[2].x);assert.ok(Math.abs(boxes[1].y-boxes[2].y)<2);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

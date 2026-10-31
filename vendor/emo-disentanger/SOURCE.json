@@ -1,0 +1,21 @@
+{
+  "repository": "https://github.com/Yuer867/EMO-Disentanger",
+  "commit": "2aba686574e371efff90ed51e356ca51e662f442",
+  "files": {
+    "LICENSE": "a74fae10e4ea268914bc62c16fff3a940fd1851a05fa266d8d2b29a139e9198c",
+    "README.md": "3c9f29503ca7444c850686d26449d1043185a78713e685378a02924e7cff5660",
+    "representations/events2words.py": "deb495eceecc9d74e7c2198c7b598906a71e8972033a60ad82e2ccb67de8dc56",
+    "stage1_compose/config/emopia_finetune.yaml": "c5e5d8af09626e77068fc8f8e1399681f4b91ede5c62aff31717fbcd3cbab962",
+    "stage1_compose/inference.py": "d34fb2580004cf3a697fd2fe536426b964c26734691be52563ede86b47fa1e2e",
+    "stage1_compose/inference_utils.py": "23b6782ea1c5b060ce457c8054212a7633c35b0f1ffd8fbf81154ab1ca2ba4a3",
+    "stage1_compose/convert2midi.py": "0a2921da78e6983b0448edd1258e4a370a94f2288e75e8cd7011741d42553261",
+    "stage1_compose/convert_key.py": "c8bb546824ef0632bffc8d556baed811379d622eefb262f27a19a5fed935e9ed",
+    "stage1_compose/model/plain_transformer.py": "a1a2590d6572b51dddf2a6d56f1c8f1892c8c3823aca488a1a2d3ba878c3c878",
+    "stage1_compose/model/optimus_txl_decoder.py": "c8df2ca2dae0099281994960b59b823313f642dc778408adaeb32fe5150c5181",
+    "stage1_compose/model/transformer_helpers.py": "93e70ca78d8f8bac8e53bad7cb144ea255b87e99e5555ef2dfc0279a88468f20",
+    "stage2_accompaniment/config/emopia_finetune_gpt2.yaml": "f1e68d264381692a69f68b702e047a97a4e2e19b54668c3aab1a9839f00c646f",
+    "stage2_accompaniment/model/music_gpt2.py": "d9943e50119f8218c299918e243988f04d3c869d98ec2eaf27c3579bfa8ae7c6",
+    "stage2_accompaniment/model/transformer_helpers.py": "225e7cbad922745e6cad74bd8fdeb1313684f278a3579c0d1ff91ae94df79fbd",
+    "stage2_accompaniment/inference.py": "f54a5d430cdb6ca55d9239e90d900f8e3ac92d24e1c8d4d9d9e862a10aa1fe04"
+  }
+}

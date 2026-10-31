@@ -1,0 +1,33 @@
+// Historical UI scenario. See ../README.md for the maintained v0.7.2 suite.
+import {chromium,browserPath,routeQaApi} from '../browser-runtime.mjs';
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+await fs.mkdir('tests/output',{recursive:true});
+const browser=await chromium.launch({headless:true,executablePath:browserPath()});
+const page=await browser.newPage({viewport:{width:1440,height:900},acceptDownloads:true}),errors=[],progress=[],requests=[];
+page.on('pageerror',e=>errors.push(e.message));await routeQaApi(page);
+page.on('response',async r=>{if(r.url().endsWith('/progress')){try{progress.push(await r.json());}catch{}}});
+await page.route('**/api/reset',r=>r.fulfill({status:204}));await page.route('**/api/jobs',r=>r.fulfill({status:202,json:{id:'e'.repeat(32)}}));
+await page.route('**/api/jobs/*/texture',async route=>{const request=route.request(),body=request.postDataJSON();body.seed=40+requests.length;requests.push(body);const url=new URL(request.url());url.port='8770';const headers={...request.headers(),origin:'http://127.0.0.1:8765'};delete headers['content-length'];const response=await route.fetch({url:url.href,headers,postData:JSON.stringify(body),timeout:0});await route.fulfill({response}).catch(()=>{});});
+const settle=()=>page.waitForFunction(()=>document.querySelector('.gf-score')?.dataset.rendering==='false',{},{timeout:120000});
+async function action(kind,perform){const pending=page.waitForResponse(r=>r.url().endsWith('/'+kind),{timeout:300000});await perform();const r=await pending;assert.equal(r.status(),200,await r.text());const body=await r.json();await settle();return body;}
+async function save(path){const d=page.waitForEvent('download');await page.getByRole('button',{name:'保存工程',exact:true}).click();await(await d).saveAs(path);return JSON.parse(await fs.readFile(path,'utf8'));}
+try{
+ await page.goto('http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();await page.getByLabel('速度（BPM）',{exact:true}).fill('68');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();await page.locator('.drop-zone[aria-disabled="false"]').waitFor();await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/fixtures/ui-upload.flac');await settle();
+ const original=await page.locator('.gf-score').getAttribute('data-score-fingerprint');await page.locator('.score-settings summary').click();const h=await action('harmony',()=>page.getByRole('button',{name:'生成基本和弦',exact:true}).click());
+ // Cancelling must stop the actual child and preserve the current arrangement.
+ await page.getByRole('button',{name:'生成伴奏',exact:true}).click();await page.waitForResponse(r=>r.url().endsWith('/progress'),{timeout:30000});const cancelled=page.waitForResponse(r=>r.request().method()==='DELETE');await page.getByRole('button',{name:'取消生成',exact:true}).click();assert.equal((await cancelled).status(),204);await page.getByRole('button',{name:'生成伴奏',exact:true}).waitFor();assert.equal(await page.locator('.gf-score').getAttribute('data-playback-version'),h.fingerprint);
+ const first=await action('texture',()=>page.getByRole('button',{name:'生成伴奏',exact:true}).click());assert.equal(first.settings.mode,'amt');assert.equal(first.model.version,'amt-medium-v1');assert.equal(first.sourceFingerprint,original);assert.ok(first.events.length>0);assert.ok(progress.some(p=>p.stage==='generating'&&p.progress>0));assert.equal(await page.locator('.gf-score').getAttribute('data-mapped-notes'),'122');
+ await page.getByLabel('仅重新生成选定小节',{exact:true}).check();await page.getByLabel('伴奏起始小节',{exact:true}).selectOption('2');await page.getByLabel('伴奏结束小节',{exact:true}).selectOption('5');
+ const second=await action('texture',()=>page.getByRole('button',{name:'生成伴奏',exact:true}).click());assert.deepEqual(second.settings.range,{firstMeasure:2,lastMeasure:5});assert.equal(second.settings.baseFingerprint,first.fingerprint);assert.notEqual(second.settings.seed,first.settings.seed);
+ const left=h.bars[1].playStart,right=h.bars[4].playEnd;
+ const outside=events=>events.flatMap(e=>e.pitches.map(p=>[e.start,e.end,p])).filter(([s])=>s<left||s>=right).map(JSON.stringify).sort();assert.deepEqual(outside(first.events),outside(second.events));
+ await page.getByRole('button',{name:'试听选段',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.gf-score')?.dataset.playing==='true');await page.getByRole('button',{name:'停止',exact:true}).click();
+ const project=await save('tests/output/amt.acproject.json');assert.equal(project.source.scoreFingerprint,original);assert.equal(Object.values(project.textureSets)[0].items.length,2);
+ const d=page.waitForEvent('download');await page.getByRole('button',{name:'下载此页 PNG',exact:true}).click();await(await d).saveAs('tests/output/amt-score.png');
+ await page.getByRole('button',{name:'清除',exact:true}).click();await page.getByLabel('打开工程',{exact:true}).setInputFiles('tests/output/amt.acproject.json');await settle();assert.equal(await page.locator('.gf-score').getAttribute('data-playback-version'),second.fingerprint);
+ const reopened=await save('tests/output/amt-reopened.acproject.json');assert.deepEqual(reopened.textureSets,project.textureSets);
+ if(!await page.locator('.score-settings').evaluate(e=>e.open))await page.locator('.score-settings summary').click();await page.getByLabel('试听版本',{exact:true}).selectOption('0');await settle();assert.equal(await page.locator('.gf-score').getAttribute('data-playback-version'),first.fingerprint);
+ await page.locator('.accompaniment-panel').scrollIntoViewIfNeeded();await page.screenshot({path:'tests/output/amt-desktop.png'});await page.setViewportSize({width:390,height:844});await page.getByRole('tab',{name:'工具',exact:true}).click();await page.locator('.accompaniment-panel').scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'tests/output/amt-mobile.png'});assert.deepEqual(errors,[]);
+ await fs.writeFile('tests/output/amt-browser-checks'+(process.env.QA_SUFFIX?'-'+process.env.QA_SUFFIX:'')+'.json',JSON.stringify({browser:await browser.version(),firstSeconds:first.generationSeconds,partialSeconds:second.generationSeconds,events:first.events.length,progress:progress.length,unchangedOutsideRange:true,projectRoundtrip:true,cancelled:true,errors},null,2));console.log('AMT real generation, progress, cancellation, partial preservation, playback, PNG and project roundtrip passed');
+}catch(error){await page.screenshot({path:'tests/output/amt-failure.png'}).catch(()=>{});throw error;}finally{await browser.close();}

@@ -3,5 +3,6 @@
 *.ps1 text eol=crlf
 *.mp3 -text
 *.flac -text
-vendor/** -text
+vendor/** -text whitespace=-blank-at-eol,-blank-at-eof
 public/** -text
+server/data/emo-stage*-vocabulary.json -text whitespace=cr-at-eol

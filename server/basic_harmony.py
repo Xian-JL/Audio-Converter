@@ -17,6 +17,15 @@ from .chord_score import engrave_block_chords
 VERSION='basic-harmony-v2'
 RESOURCE=Path(__file__).with_name('data')/'basic-harmony.json'
 
+
+def harmony_for_settings(score,settings,default='adaptive-block-v1'):
+    policy=settings.get('harmonyPolicy',default)
+    if policy=='legacy':return generate_basic_harmony(score,settings.get('locks'),settings.get('phraseStarts'),settings.get('chordOffsetMs',0))
+    if policy=='adaptive-block-v1':
+        from .adaptive_harmony import generate
+        return generate(score,settings.get('locks'),settings.get('phraseStarts'),settings.get('chordOffsetMs',0),settings.get('segmentLocks'))
+    raise ValueError('Unsupported harmony policy.')
+
 @lru_cache(maxsize=1)
 def resources():
     return json.loads(RESOURCE.read_text(encoding='utf-8'))
@@ -77,8 +86,10 @@ def melody_cost(chord,bar,notes,bpm,key):
         pc=n['midi']%12
         metrical_start=bar.get('metricalStart',bar['start'])
         beat=(n['start']-metrical_start)/quarter
+        if 'calibratedBeat' in n:beat=n['calibratedBeat']-bar['startTick']/bar['quarterDivisions']
         strength=2. if abs(beat)<.12 else 1.35 if abs(beat-round(beat))<.12 else .8
         mass=(right-left)/quarter*strength
+        if 'calibratedBeat' in n:mass=(min(n['endTick'],bar['endTick'])-max(n['startTick'],bar['startTick']))/bar['quarterDivisions']*strength
         in_chord=pc in chord['pitchClasses']
         passing=False
         i=n['index']-1
@@ -124,6 +135,8 @@ def generate_basic_harmony(score,locks=None,phrases=None,chord_offset_ms=0):
     starts=phrase_starts(score,phrases);mode=score['key'].split()[1]
     transitions,positions=corpus_prior(mode)
     analysis_notes=[{**n,'start':n['notatedStart'],'end':n['notatedEnd']} for n in score['notes']]
+    if score.get('downbeats'):
+        analysis_notes=[{**n,'calibratedBeat':n['startTick']/score['divisions']} for n in analysis_notes]
     emissions=[];conflicts=[];phrase_index=0
     for i,bar in enumerate(score['measures']):
         if phrase_index+1<len(starts) and i+1>=starts[phrase_index+1]:phrase_index+=1
@@ -137,7 +150,7 @@ def generate_basic_harmony(score,locks=None,phrases=None,chord_offset_ms=0):
             elif final_pc in by_id['5:7']['pitchClasses']:target=5
         costs=[];bad=[]
         for c in choices:
-            cost,conflict=melody_cost(c,bar,analysis_notes,score['bpm'],score['key'])
+            cost,conflict=melody_cost(c,{**bar,'quarterDivisions':score['divisions']},analysis_notes,score['bpm'],score['key'])
             if c['degree']:cost+=.07*-math.log((prior[c['degree']]+1)/(sum(prior.values())+7))
             if target and c['degree'] not in (0,target):cost+=.16
             if str(i+1) in locks and locks[str(i+1)]!=c['id']:cost=math.inf
@@ -162,7 +175,7 @@ def generate_basic_harmony(score,locks=None,phrases=None,chord_offset_ms=0):
         if pitches:previous=pitches
         ranking=[]
         for j,option in enumerate(choices):
-            cost,bad=melody_cost(option,bar,analysis_notes,score['bpm'],score['key'])
+            cost,bad=melody_cost(option,{**bar,'quarterDivisions':score['divisions']},analysis_notes,score['bpm'],score['key'])
             if i:cost+=connection(choices[path[i-1]],option,transitions)
             if i+1<len(path):cost+=connection(option,choices[path[i+1]],transitions)
             ranking.append((cost,j,bad))

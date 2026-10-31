@@ -1,0 +1,80 @@
+/* Studio shell and task navigation. Engraving geometry lives in workspace.css. */
+:root{--ink:#253444;--muted:#687786;--line:#dce2e8;--accent:#315d79;--paper:#fffefb;background:#edf0f3;color:var(--ink)}
+button,input,select{border-color:#ced7df}
+button:hover:not(:disabled){background:#edf2f6;border-color:#9aafbf}
+button:focus-visible,a:focus-visible,[role=button]:focus-visible,input:focus-visible,select:focus-visible,[role=tabpanel]:focus-visible{outline-color:#759db8}
+button,.primary-button{border-radius:7px}
+.primary-button:hover:not(:disabled){background:#23465d;border-color:#23465d}
+.site-header{padding:18px 0;gap:12px}
+.brand-icon{background:#253c51;color:#f4dba6;font-family:Georgia,serif;font-size:27px;border-radius:10px}
+.brand{letter-spacing:-.5px}
+.brand .release-tag{align-self:center;background:#e4ebf1;color:#4d6478;border-color:#d3dde7;font-size:10px;font-weight:500}
+.language{background:#e4e9ef}
+.service-indicator{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted)}
+.service-indicator i{width:6px;height:6px;border-radius:50%;background:#ae8f60}
+.service-indicator.ready i{background:#4c8d77}
+.intro h1{font-family:Georgia,"Microsoft YaHei",serif;letter-spacing:-1.2px;font-size:clamp(30px,3vw,44px)}
+.intro{padding:32px 0}
+.intro-mark{display:none}
+.source-heading{padding:4px 2px 0}
+.source-heading h2{margin:7px 0;font-size:19px;font-weight:600}
+.source-heading p{font-size:11px;color:var(--muted)}
+.source-panel{gap:12px}
+.project-actions{display:flex;gap:8px}
+.project-actions button{flex:1;background:var(--paper)}
+.drop-zone{background:#e5ecf2;border-color:#a5bacb;min-height:185px;padding:20px 14px}
+.drop-zone:hover,.drop-zone.dragging{background:#dbe7f0;border-color:#628baa}
+.choose-button{background:#315d79}
+.music-settings,.player-card{padding:17px}
+.music-settings p{font-size:11px}
+.settings-form{margin-top:14px;gap:10px}
+.settings-form button{background:#eaf0f5;color:#315d79;border-color:#cedce6}
+.card{box-shadow:0 2px 8px #23364a04;border-radius:12px}
+.file-icon,.badge.success{background:#e5edf3;color:#315d79}
+.status-card{background:#e8f0ee;border-color:#cbded7}
+.status-card.has-error{background:#fcf1e9;border-color:#e9caba}
+.score-card{background:#e5e9ee}
+.score-placeholder{background:var(--paper);border:1px solid var(--line);border-radius:8px;margin-top:18px;min-height:380px}
+.tools-panel{background:#f9fafb}
+.tools-panel>.card-heading{margin-bottom:14px;padding-bottom:14px}
+.project-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 0 15px}
+.project-bar>span{font-size:12px;font-weight:600}
+.project-bar small{display:block;margin-top:5px;font-size:10px;font-weight:400;color:var(--muted)}
+.project-bar button{flex-shrink:0;font-size:11px;padding:8px 11px}
+.tool-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding:4px;margin-bottom:18px;border:1px solid #dce3ea;border-radius:8px;background:#eaf0f5}
+.tool-tabs button{padding:8px 2px;border:0;background:transparent;font-size:11px;color:var(--muted);min-width:0;font-weight:600}
+.tool-tabs button[aria-selected=true]{background:#fff;color:var(--accent);box-shadow:0 1px 4px #23364a12}
+.tool-task[hidden]{display:none!important}
+.tool-task{min-width:0}
+.task-intro{margin-bottom:16px}
+.score-tools .task-intro h3{font-size:15px;line-height:1.5;margin-bottom:7px}
+.task-intro p,.task-footnote,.task-empty p{font-size:11px;color:var(--muted);line-height:1.8}
+.task-empty{padding:22px 8px;text-align:center;border:1px dashed #c5d2de;border-radius:9px;background:#f0f4f8}
+.task-empty p{margin:10px 0 18px}
+.task-next{width:100%;margin-top:12px;color:var(--accent);border-color:#c9d8e3;background:#eaf0f5}
+.task-footnote{margin:15px 0 0}
+.score-tools .workspace-actions{margin-bottom:14px}
+.score-tools .workspace-actions .score-note-count{display:none}
+.score-tools .basic-harmony,.score-tools .accompaniment-panel{border:0;background:transparent;padding:0}
+.score-tools .accompaniment-panel>h3,.score-tools .tools-export>h3{font-size:15px;margin-bottom:9px}
+.score-tools .accompaniment-hint{font-size:11px;line-height:1.8;color:var(--muted)}
+.emotion-controls{gap:11px;padding:15px 12px;background:#eaf0f5;border:1px solid #d8e2eb;border-radius:9px;margin:16px 0}
+.emotion-controls label{font-size:11px;font-weight:600;color:#506479;gap:6px}
+.emotion-controls select{height:36px;font-weight:400;font-size:12px}
+.instrumental-section{background:#fff;border-color:var(--line);padding:12px}
+.instrumental-section .gf-review-row label{width:auto;flex:1}
+.instrumental-section .gf-review-row button{min-width:0;font-size:10px}
+.score-tools .navigation-settings{background:#eef3f7;border-color:var(--line)}
+.navigation-settings>summary{color:var(--accent)}
+.score-tools .tools-instruments{border-bottom:0;padding-bottom:0}
+.score-tools .ensemble-staff{background:#f1f4f7;border-color:var(--line)}
+.ensemble-layer{background:#fff;border-color:#d8e1e9}
+.gf-score .score-console{background:#f8fafc;border-color:#d9e1e8}
+.gf-score .score-page-turn{color:#526e86}
+.gf-score .page-caption{color:#526477}
+.harmony-table-scroll{border-color:#d6dfe7}
+@media(min-width:1200px){.studio-workspace{grid-template-columns:250px minmax(0,1fr) 350px}}
+@media(min-width:1700px){.studio-workspace{grid-template-columns:280px minmax(0,1fr) 380px}}
+@media(max-width:1199px){.tool-tabs{max-width:580px}.app-shell:has(.gf-score) .tools-panel{padding:16px}.task-workspace{max-width:780px;margin:0 auto}}
+@media(max-width:600px){.brand{font-size:16px;gap:8px}.brand small{font-size:9px}.brand .release-tag{font-size:9px;padding:3px 5px}.header-controls{gap:8px}.service-indicator{display:none}.language button{padding:6px 8px}.intro{padding:25px 0}.intro p{font-size:12px}.tool-tabs{gap:2px;margin-bottom:16px}.tool-tabs button{padding:10px 1px}.source-heading{padding-top:8px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

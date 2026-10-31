@@ -32,7 +32,7 @@ def restore_note_identity(notes,encoded,duration):
 def score_for_request(source,body,anchor=True):
     edited=body.get('editedNotes')
     result=source if edited is None else {**source,'notes':restore_note_identity(notes_checked(edited,source['duration']),body.get('identityNotesJson'),source['duration'])}
-    score=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'),body.get('anchorNoteId') if anchor else None)
+    score=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'),body.get('anchorNoteId') if anchor else None,body.get('downbeats') if anchor else None)
     if edited is not None:score['editedNotes']=result['notes']
     return score
 
@@ -43,7 +43,7 @@ def edit_score(source,body):
     operation=body.get('operation')
     if not isinstance(operation,dict):raise ValueError('Invalid note edit.')
     kind=operation.get('kind');identity=operation.get('id');index=next((i for i,n in enumerate(notes) if n['id']==identity),None)
-    anchor=body.get('anchorNoteId');selected=identity
+    anchor=body.get('anchorNoteId');anchors={p['noteId'] for p in current.get('downbeats',[])}|({anchor} if anchor else set());selected=identity
     if kind=='insert':
         selected='edit-'+uuid.uuid4().hex
         notes.append({'id':selected,'start':operation.get('start'),'end':operation.get('end'),'midi':operation.get('midi'),'midiFloat':operation.get('midi')})
@@ -53,7 +53,7 @@ def edit_score(source,body):
             if key in operation:notes[index][key]=operation[key]
         if 'midi' in operation:notes[index]['midiFloat']=operation['midi']
     elif kind=='delete':
-        if identity==anchor:raise ValueError('Choose another downbeat before deleting its reference note.')
+        if identity in anchors:raise ValueError('Choose another downbeat before deleting its reference note.')
         notes.pop(index);selected=notes[min(index,len(notes)-1)]['id'] if notes else None
     elif kind=='split':
         at=operation.get('time');note=notes[index]
@@ -61,7 +61,7 @@ def edit_score(source,body):
         selected='edit-'+uuid.uuid4().hex;right={**note,'id':selected,'start':at};note['end']=at;notes.insert(index+1,right)
     elif kind=='merge':
         if index+1>=len(notes) or notes[index]['midi']!=notes[index+1]['midi']:raise ValueError('Only consecutive notes with the same pitch can be merged.')
-        if notes[index+1]['id']==anchor:raise ValueError('Choose another downbeat before merging its reference note.')
+        if notes[index+1]['id'] in anchors:raise ValueError('Choose another downbeat before merging its reference note.')
         notes[index]['end']=notes[index+1]['end'];notes.pop(index+1)
     else:raise ValueError('Unknown note edit.')
     if any(type(n.get('start')) not in (int,float) for n in notes):raise ValueError('Invalid note start.')

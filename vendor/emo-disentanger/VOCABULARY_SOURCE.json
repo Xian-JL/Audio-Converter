@@ -1,0 +1,21 @@
+{
+  "source": "https://drive.usercontent.google.com/download?id=1NRisx-FpjcsXov1jmtrbAhtFBFBkGRgW&export=download&confirm=t",
+  "vocabularies": [
+    {
+      "stage": "stage1",
+      "member": "events/stage1/emopia_events/lead_sheet_chord11_functional/dictionary.pkl",
+      "bytes": 4317,
+      "sha256": "7ba51ecad3ab6b4afa76f8ac12d9e18e2de0ff438ef6285465b5baa6dc853b13",
+      "tokens": 215,
+      "jsonSha256": "49116f7e9ca563cb5f89cc91b59d587e545a89fe6f54ea07e6e3bc230201eada"
+    },
+    {
+      "stage": "stage2",
+      "member": "events/stage2/emopia_events/full_song_chord11_functional/dictionary.pkl",
+      "bytes": 7000,
+      "sha256": "76a41871e971b4ba0f88d610bae09fdc28a7956c381ba41355ed706a8bea8a76",
+      "tokens": 328,
+      "jsonSha256": "f9e14760f2529c3903707e59cab0ae8bb44a02e8b00419549d5dec1a765dfa18"
+    }
+  ]
+}

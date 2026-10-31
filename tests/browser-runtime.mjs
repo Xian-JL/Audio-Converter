@@ -15,5 +15,5 @@ export const chromium=runtime.chromium;
 export function browserPath(){return process.env.TEST_BROWSER_PATH||chromium.executablePath();}
 export async function routeQaApi(page,base=process.env.QA_API_URL){
  if(!base)return;const target=new URL(base);if(target.hostname!=='127.0.0.1')throw Error('QA service must be local.');
- await page.route('**/api/**',async route=>{const url=new URL(route.request().url());url.host=target.host;const response=await route.fetch({url:url.href,headers:{...route.request().headers(),origin:'http://127.0.0.1:8765'}});await route.fulfill({response});});
+ await page.route('**/api/**',async route=>{const url=new URL(route.request().url());url.host=target.host;const response=await route.fetch({url:url.href,timeout:0,headers:{...route.request().headers(),origin:'http://127.0.0.1:8765'}});await route.fulfill({response});});
 }

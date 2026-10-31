@@ -20,7 +20,12 @@ if ($LASTEXITCODE) { throw 'GAME resource setup failed.' }
 if ($LASTEXITCODE) { throw 'Instrument resource setup failed.' }
 & $projectPython -m pip install -r requirements-texture.txt --extra-index-url https://download.pytorch.org/whl/cpu
 if ($LASTEXITCODE) { throw 'Accompaniment dependencies failed.' }
-& $projectPython scripts\texture_resources.py
+& $projectPython -B -c "from server.emotion_runtime import available; assert all(available(e) for e in ('emo','midi-emotion'))"
+if ($LASTEXITCODE -ne 0) {
+    & (Join-Path $PSScriptRoot 'scripts\download_emotion_models.ps1')
+    & $projectPython -B scripts\prepare_emotion_models.py
+}
+& $projectPython -B -c "from server.emotion_runtime import verify; [verify(e) for e in ('emo','midi-emotion')]"
 if ($LASTEXITCODE) { throw 'Accompaniment resource setup failed.' }
 & $projectPython scripts\generate_test_fixtures.py
 if ($LASTEXITCODE) { throw 'Test fixture preparation failed.' }

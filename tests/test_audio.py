@@ -14,7 +14,7 @@ class AudioTests(unittest.TestCase):
         self.assertEqual(directory,service.ROOT/'models/game-small')
         self.assertTrue(all((directory/f'{part}.onnx').is_file() for part in FILES))
         health=service.app.test_client().get('/api/health').json
-        self.assertTrue(health['ready']);self.assertTrue(health['textureReady']);self.assertEqual(health['appVersion'],'0.4.0')
+        self.assertTrue(health['ready']);self.assertTrue(health['textureReady']);self.assertEqual(health['appVersion'],'0.7.2')
 
     def test_real_flac_conversion(self):
         source=Path('tests/fixtures/ui-upload.flac');info=probe(source)

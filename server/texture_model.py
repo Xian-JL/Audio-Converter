@@ -1,7 +1,8 @@
-"""Pinned AccoMontage chord/texture VAE on CPU, with compact phrase retrieval.
+"""Pinned AccoMontage chord/texture VAE on CPU, with local phrase retrieval.
 
-The neural decoder is upstream code. Retrieval and left-hand reduction are local
-adaptations; this is not the unmodified two-handed AccoMontage pipeline.
+The neural decoder is upstream code. Retrieval is a local adaptation; this is
+not the unmodified end-to-end AccoMontage pipeline. New generation uses neutral
+retrieval and returns all decoded tones without musical postprocessing.
 """
 from functools import lru_cache
 from pathlib import Path
@@ -60,15 +61,17 @@ def choose_donors(score,harmony,style,density,variant,bank,structured=False):
                 if 0<=frame<64:onsets[frame]+=1
             query=onsets.reshape(16,4).sum(axis=1)
             donor=bank['melody'];similarity=(donor@query)/(np.linalg.norm(donor,axis=1)*np.linalg.norm(query)+1e-7)
-            target=(1.1,1.65,2.2)[density]
+            target=(1.1,1.65,2.2)[density] if density is not None else None
             if structured:
                 # Quiet openings and phrase endings; support active interiors.
                 target*=.8 if offset==0 else 1.05
                 if offset+4>=len(group):target*=.85
-            if len(local)/max(len(window),1)>8:target*=.65
-            target_sync={'lyrical':.45,'flowing':.6,'syncopated':.78}[style]
-            stats=bank['stats'];cost=1-similarity+.38*np.abs(stats[:,0]-target)+.3*np.abs(stats[:,2]-target_sync)+.12*np.maximum(0,stats[:,1]-2.4)
-            cost[(stats[:,0]<.4)|(stats[:,1]>3.5)]=100
+            if target is not None and len(local)/max(len(window),1)>8:target*=.65
+            stats=bank['stats'];cost=1-similarity
+            if style is not None:
+                target_sync={'lyrical':.45,'flowing':.6,'syncopated':.78}[style]
+                cost=cost+.38*np.abs(stats[:,0]-target)+.3*np.abs(stats[:,2]-target_sync)+.12*np.maximum(0,stats[:,1]-2.4)
+                cost[(stats[:,0]<.4)|(stats[:,1]>3.5)]=100
             candidates=np.argsort(cost,kind='stable')[:8]
             contour=tuple((round((n['startTick']-left)/score['divisions']*2)/2,n['midi']-local[0]['midi']) for n in local) if local else ()
             pieces.append({'bars':window,'left':left,'length':length,'candidates':candidates,'costs':cost,'onsets':len(local),'motifKey':(len(window),contour)})
@@ -92,7 +95,7 @@ def choose_donors(score,harmony,style,density,variant,bank,structured=False):
             elif p['onsets']>=4:motifs[key]=p
     return pieces
 
-def infer(score,harmony,style,density,variant,structured=False):
+def infer(score,harmony,style=None,density=None,variant=0,structured=False):
     import torch
     model,bank,manifest=runtime();pieces=choose_donors(score,harmony,style,density,variant,bank,structured)
     rolls=[];chords=[];windows=[]

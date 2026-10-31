@@ -1,4 +1,5 @@
-import {chromium,browserPath,routeQaApi} from './browser-runtime.mjs';
+// Historical UI scenario. See ../README.md for the maintained v0.7.2 suite.
+import {chromium,browserPath,routeQaApi} from '../browser-runtime.mjs';
 import fs from 'node:fs/promises';
 await fs.mkdir('tests/output',{recursive:true});
 import assert from 'node:assert/strict';

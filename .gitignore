@@ -13,6 +13,7 @@ node_modules
 models/*.onnx
 models/*.part
 models/game-small/
+models/amt-medium/
 models/accomontage/*.pt
 models/accomontage/*.npz
 models/accomontage/*.zip
@@ -53,3 +54,13 @@ tests/fixtures/*.json
 *.acproject.json
 
 release/
+/models/emo-disentanger/
+/models/midi-emotion/
+
+# Local recordings and generated media; licensed app samples stay versioned.
+*.mp3
+*.flac
+*.m4a
+*.mp4
+!public/**/*.mp3
+/exports/

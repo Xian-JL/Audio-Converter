@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "repository": "https://huggingface.co/stanford-crfm/music-medium-800k",
+  "revision": "93b6eb7e09bad33be6cb2ebd50ce5279cbfde7f6",
+  "license": "Apache-2.0",
+  "files": {
+    "config.json": {
+      "bytes": 1963,
+      "sha256": "bb4fd12b049da737be15b61e959aa913ab5a1982b256530dd05247dbf1b0b737",
+      "url": "https://huggingface.co/stanford-crfm/music-medium-800k/resolve/93b6eb7e09bad33be6cb2ebd50ce5279cbfde7f6/config.json"
+    },
+    "pytorch_model.bin": {
+      "bytes": 1438866529,
+      "sha256": "7af65dbabb2f6b7df9df03c2ea5b1909b74043591ba578fb663d80fcf82241ad",
+      "url": "https://huggingface.co/stanford-crfm/music-medium-800k/resolve/93b6eb7e09bad33be6cb2ebd50ce5279cbfde7f6/pytorch_model.bin"
+    },
+    "README.md": {
+      "bytes": 739,
+      "sha256": "fe32d056115e9af36972cab12fb1e500c32adcc3c93904a38e22458f5fc7ce9a",
+      "url": "https://huggingface.co/stanford-crfm/music-medium-800k/resolve/93b6eb7e09bad33be6cb2ebd50ce5279cbfde7f6/README.md"
+    }
+  }
+}

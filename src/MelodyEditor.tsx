@@ -13,7 +13,7 @@ export default function MelodyEditor({score,jobId,language,selectedId,onRevision
   const submit=async(kind:string)=>{
     if(busy||working)return;onBeforeChange();setWorking(true);setError('');const controller=new AbortController();request.current=controller;
     try{
-      const result=await api<ScoreVersion&{selectedNoteId:string|null}>(`/api/jobs/${jobId}/edit`,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({bpm:score.bpm,meter:score.meter,key:score.key,anchorNoteId:score.downbeat?.noteId,editedNotes:score.editedNotes,identityNotesJson:score.identityNotesJson,sourceFingerprint:score.scoreFingerprint,operation:{kind,id:selectedId,midi:Number(midi),start:Number(start),end:Number(end),time:Number(split)}})});
+      const result=await api<ScoreVersion&{selectedNoteId:string|null}>(`/api/jobs/${jobId}/edit`,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({bpm:score.bpm,meter:score.meter,key:score.key,anchorNoteId:score.downbeat?.noteId,downbeats:score.downbeats?.map(({noteId,measure})=>({noteId,measure})),editedNotes:score.editedNotes,identityNotesJson:score.identityNotesJson,sourceFingerprint:score.scoreFingerprint,operation:{kind,id:selectedId,midi:Number(midi),start:Number(start),end:Number(end),time:Number(split)}})});
       if(!controller.signal.aborted)onRevision(result,result.selectedNoteId);
     }catch(cause){if(!controller.signal.aborted)setError(translatedError(String((cause as Error).message),zh?chinese:en));}
     finally{if(!controller.signal.aborted)setWorking(false);}

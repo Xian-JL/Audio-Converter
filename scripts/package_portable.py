@@ -14,7 +14,7 @@ import zipfile
 from packaging.requirements import Requirement
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='0.4.0'
+VERSION=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
 
 def runtime_file(path):
     """Retain licenses even when they live under an upstream include directory."""
@@ -65,13 +65,13 @@ def build(destination):
     if destination.exists():raise FileExistsError('Choose a new output directory; existing files are never overwritten.')
     if not (ROOT/'dist/index.html').is_file():raise RuntimeError('Build the frontend first.')
     from server.game import model_directory
-    from server.texture_model import runtime
+    from server.emotion_runtime import verify
     from server.audio import FFMPEG,FFPROBE
-    model_directory();runtime()
+    model_directory();verify('emo');verify('midi-emotion')
     if not FFMPEG.is_file() or not FFPROBE.is_file():raise RuntimeError('Run Setup.cmd first.')
     installed=distributions();destination.mkdir(parents=True)
     for directory in ('dist','server','vendor','models','tools'):
-        shutil.copytree(ROOT/directory,destination/directory,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.part','*.zip','*.log'))
+        shutil.copytree(ROOT/directory,destination/directory,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.part','*.zip','*.tar.gz','*.preparing','*.log','.cache'))
     for name in ('README.md','README.zh-CN.md','THIRD_PARTY.md','SPEC.md','RELEASE.md','requirements.txt','requirements-texture.txt'):
         shutil.copy2(ROOT/name,destination/name)
     base=Path(sys.base_prefix);runtime_dir=destination/'runtime';runtime_dir.mkdir()

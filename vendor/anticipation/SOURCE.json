@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/jthickstun/anticipation",
+  "commit": "af37397922665a0fb8d474d7988b0f3755a38d45",
+  "files": {
+    "LICENSE.txt": "eabd943e7fbb07420f3c63c87a3ffe0e350db4630df026c98af48be6ba76b7ad",
+    "anticipation/__init__.py": "beeaf45e67656b19308976c244e3fdddf0e5d41d3b556012396a86d1079f0537",
+    "anticipation/config.py": "5765aecff71fe107108d14c02cdc675dbf5a12538d287eab349fb71d373f2f3c",
+    "anticipation/vocab.py": "a8d6c1b376e0be396a1185e3e9bb74891851400da06d9c5c9d29bd835c0368c7",
+    "anticipation/ops.py": "929a6da4d86e7ecfa3255fb1ee7524600509ed0f885c8473b64233a46c9d1f78",
+    "anticipation/sample.py": "17d98e828a5687cea623570d085828e91a978fe38bb949270467c8027d920718"
+  }
+}

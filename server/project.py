@@ -2,7 +2,7 @@
 import math
 import re
 from .editing import notes_checked, score_for_request, restore_note_identity
-from .basic_harmony import generate_basic_harmony
+from .basic_harmony import harmony_for_settings
 from .chord_score import engrave_block_chords
 
 PROJECT_LIMIT=32*1024*1024
@@ -37,20 +37,34 @@ def index(value,length,allow_none=False):
 def restore_texture(item,score,harmony):
     if not isinstance(item,dict) or item.get('sourceFingerprint')!=score['scoreFingerprint'] or item.get('harmonyFingerprint')!=harmony['fingerprint']:raise ValueError('The saved accompaniment does not match this score.')
     if not isinstance(item.get('fingerprint'),str) or not re.fullmatch('[a-f0-9]{64}',item['fingerprint']):raise ValueError('Invalid accompaniment identity.')
+    if isinstance(item.get('settings'),dict) and item['settings'].get('mode') in ('hybrid-v1','hybrid-v2'):
+        from .hybrid import restore
+        if harmony.get('policy')!='adaptive-block-v1':raise ValueError('Instrumental sections require melody-led block chords.')
+        return restore(item,score,harmony)
     events=item.get('events');written=item.get('writtenChords')
     if not isinstance(events,list) or not isinstance(written,list) or len(events)!=len(written) or len(events)>20000:raise ValueError('Invalid saved accompaniment.')
     settings=item.get('settings',{})
-    if settings.get('style') not in ('lyrical','flowing','syncopated') or type(settings.get('density'))!=int or settings['density'] not in (0,1,2) or type(settings.get('variant'))!=int or settings['variant'] not in (0,1,2) or settings.get('voicing','compact') not in ('compact','layered'):raise ValueError('Invalid arrangement settings.')
+    if not isinstance(settings,dict):raise ValueError('Invalid arrangement settings.')
+    raw=settings.get('mode') in ('model','amt')
+    if raw:
+        if settings.get('mode')=='amt':
+            if set(settings) not in ({'mode','seed'},{'mode','seed','range','baseFingerprint'}) or type(settings.get('seed'))!=int or not 0<=settings['seed']<=0xffffffff:raise ValueError('Invalid arrangement settings.')
+            if 'range' in settings:
+                r=settings['range'];f=settings['baseFingerprint']
+                if not isinstance(r,dict) or set(r)!={'firstMeasure','lastMeasure'} or any(type(r[k])!=int for k in r) or not 1<=r['firstMeasure']<=r['lastMeasure']<=len(score['measures']) or not isinstance(f,str) or not re.fullmatch('[a-f0-9]{64}',f):raise ValueError('Invalid accompaniment measure range.')
+        elif settings!={'mode':'model'}:raise ValueError('Invalid arrangement settings.')
+    elif 'mode' in settings or settings.get('style') not in ('lyrical','flowing','syncopated') or type(settings.get('density'))!=int or settings['density'] not in (0,1,2) or type(settings.get('variant'))!=int or settings['variant'] not in (0,1,2) or settings.get('voicing','compact') not in ('compact','layered'):raise ValueError('Invalid arrangement settings.')
     choices={c['id']:c for c in harmony['choices']};ids=set();last={};last_tick={};clean_events=[];clean_written=[]
     for e,n in zip(events,written):
         if not isinstance(e,dict) or not isinstance(n,dict):raise ValueError('Invalid saved accompaniment.')
         identity=e.get('id');voice=e.get('voice',2);pitches=e.get('pitches')
-        if not isinstance(identity,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',identity) or identity in ids or type(voice)!=int or voice not in (2,3,4):raise ValueError('Invalid accompaniment note.')
+        if not isinstance(identity,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',identity) or identity in ids or type(voice)!=int or not 2<=voice<=(513 if raw else 4):raise ValueError('Invalid accompaniment note.')
         start=number(e.get('start'),0,score['duration']);end=number(e.get('end'),start,score['duration'])
         a=number(n.get('startTick'),0,score['measures'][-1]['endTick']);b=number(n.get('endTick'),a,score['measures'][-1]['endTick'])
         if start>=end or a>=b or a!=int(a) or b!=int(b) or start<last.get(voice,0)-1e-6 or a<last_tick.get(voice,0):raise ValueError('Invalid or overlapping accompaniment notes.')
-        if not isinstance(pitches,list) or not 1<=len(pitches)<=3 or any(type(p)!=int or not 0<=p<=127 for p in pitches) or n.get('pitches')!=pitches or n.get('id')!=identity or n.get('voice',2)!=voice:raise ValueError('Invalid accompaniment pitches.')
-        if n.get('chordId') not in choices or any(p%12 not in choices[n['chordId']]['pitchClasses'] for p in pitches):raise ValueError('Accompaniment pitches conflict with the saved chord.')
+        if not isinstance(pitches,list) or not 1<=len(pitches)<=(128 if raw else 3) or any(type(p)!=int or not 0<=p<=127 for p in pitches) or n.get('pitches')!=pitches or n.get('id')!=identity or n.get('voice',2)!=voice:raise ValueError('Invalid accompaniment pitches.')
+        if n.get('chordId') not in choices or (not raw and any(p%12 not in choices[n['chordId']]['pitchClasses'] for p in pitches)):raise ValueError('Accompaniment pitches conflict with the saved chord.')
+        if n.get('showChord',True) and choices[n['chordId']]['root'] is None:raise ValueError('An empty harmony cannot have a chord label.')
         velocity=number(e.get('velocity',.55),0,1)
         clean_events.append({'id':identity,'start':start,'end':end,'staff':2,'voice':voice,'pitches':pitches,'velocity':velocity})
         clean_written.append({'id':identity,'startTick':a,'endTick':b,'staff':2,'voice':voice,'pitches':pitches,'velocity':velocity,'chordId':n['chordId'],'showChord':bool(n.get('showChord',True))})
@@ -91,12 +105,12 @@ def normalize_project(payload):
     versions=[]
     for i,v in enumerate(saved):
         if not isinstance(v,dict):raise ValueError('Invalid score version.')
-        score=score_for_request(original,{**params,'editedNotes':v.get('editedNotes'),'identityNotesJson':v.get('identityNotesJson'),'anchorNoteId':v.get('anchorNoteId')});score['sourceName']=name
+        score=score_for_request(original,{**params,'editedNotes':v.get('editedNotes'),'identityNotesJson':v.get('identityNotesJson'),'anchorNoteId':v.get('anchorNoteId'),'downbeats':v.get('downbeats')});score['sourceName']=name
         if i==0 and score['scoreFingerprint']!=root['scoreFingerprint']:raise ValueError('The first version must preserve the original GF score.')
         h=v.get('harmony');harmony=None
         if h is not None:
             if not isinstance(h,dict):raise ValueError('Invalid harmony plan.')
-            harmony=generate_basic_harmony(score,h.get('locks'),h.get('phraseStarts'),h.get('chordOffsetMs',0))
+            harmony=harmony_for_settings(score,h,default='legacy')
             if h.get('fingerprint')!=harmony['fingerprint']:raise ValueError('The saved harmony identity does not match.')
         versions.append({'score':score,'harmony':harmony,'kind':'original' if i==0 else ('edit' if v.get('kind')=='edit' else 'rebar')})
     textures={};sets=payload.get('textureSets',{})

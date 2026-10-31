@@ -1,4 +1,7 @@
-"""Left-hand arrangement over a frozen harmony plan and the existing GF grid."""
+"""Unreduced model accompaniment over a frozen harmony plan and GF grid.
+
+Historical reducers remain for regression checks; new generation bypasses both.
+"""
 from collections import OrderedDict
 import copy
 import hashlib
@@ -13,7 +16,6 @@ from .meter_grid import score_grid
 
 LOCK=threading.Lock()
 CACHE=OrderedDict()
-STYLES={'lyrical','flowing','syncopated'}
 
 def reduce_left_hand(score,harmony,proposals,density):
     grid=score_grid(score);step=score['divisions']//4;events=[];previous=55
@@ -114,7 +116,35 @@ def layer_left_hand(score,harmony,proposals,density):
         active.append(note)
     return sorted((n for n in events if n['endTick']>n['startTick']),key=lambda n:(n['startTick'],n['voice']))
 
-def render_texture(score,harmony,written):
+def model_notes(score,harmony,proposals):
+    """Represent every decoded tone without changing its pitch or duration.
+
+    Independent non-overlapping XML voices are bookkeeping only. Equal-onset,
+    equal-duration tones share a chord; overlapping tones use another voice.
+    Only the end of the source recording bounds the generated material.
+    """
+    grid=score_grid(score);end_tick=min(score['measures'][-1]['endTick'],round(grid.tick(score['duration'])))
+    events=[];ends={};shown=set()
+    for proposal in sorted(proposals,key=lambda p:p['tick']):
+        tick=proposal['tick']
+        if tick<0 or tick>=end_tick:continue
+        bar=next((b for b in harmony['bars'] if b['startTick']<=tick<b['endTick']),None)
+        if bar is None:continue
+        tones=proposal.get('tones',[{'midi':p,'length':proposal['length']} for p in proposal['pitches']])
+        groups={}
+        for tone in tones:
+            end=min(end_tick,tick+tone['length'])
+            if end>tick:groups.setdefault(end,[]).append(tone['midi'])
+        for end,pitches in groups.items():
+            voice=next((v for v in range(2,len(ends)+3) if ends.get(v,0)<=tick),len(ends)+2)
+            ends[voice]=end
+            show=bar['number'] not in shown and bar['root'] is not None
+            if show:shown.add(bar['number'])
+            events.append({'id':f'model-{len(events)+1}','startTick':tick,'endTick':end,'pitches':pitches,'staff':2,'voice':voice,'chordId':bar['chordId'],'velocity':.65,'showChord':show})
+    return events
+
+
+def render_texture(score,harmony,written,preserve=False):
     grid=score_grid(score);anchors=harmony['alignment']['anchors'];inverse=sorted((y,x) for x,y in anchors);offset=harmony['alignment']['offsetMs']/1000
     events=[];notation=[];previous={}
     for n in written:
@@ -122,30 +152,67 @@ def render_texture(score,harmony,written):
         end=max(0,min(score['duration'],interpolate(anchors,grid.time(n['endTick']))+offset))
         if end-start<1e-6:continue
         voice=n.get('voice',2)
-        first=max(previous.get(voice,-1)+1,round(grid.tick(interpolate(inverse,start))))
+        first=n['startTick'] if preserve and not offset else max(previous.get(voice,-1)+1,round(grid.tick(interpolate(inverse,start))))
         previous[voice]=first
-        last=max(first+1,round(grid.tick(interpolate(inverse,end))))
+        last=n['endTick'] if preserve and not offset else max(first+1,round(grid.tick(interpolate(inverse,end))))
         e={'id':n['id'],'start':round(start,6),'end':round(end,6),'pitches':n['pitches'],'staff':2,'velocity':n['velocity'],**({'voice':voice} if 'voice' in n else {})}
         events.append(e);notation.append({**n,'startTick':first,'endTick':last})
-    for voice in {n.get('voice',2) for n in notation}:
-        local=[n for n in notation if n.get('voice',2)==voice]
-        for a,b in zip(local,local[1:]):a['endTick']=min(a['endTick'],b['startTick'])
+    if not preserve:
+        for voice in {n.get('voice',2) for n in notation}:
+            local=[n for n in notation if n.get('voice',2)==voice]
+            for a,b in zip(local,local[1:]):a['endTick']=min(a['endTick'],b['startTick'])
     xml,fragments=engrave_block_chords(score,notation,harmony['choices'],'Piano arrangement')
     return events,notation,xml,fragments
 
-def generate_accompaniment(score,harmony,style='lyrical',density=1,variant=0,voicing='layered'):
+def perform_model_notes(score,harmony,decoded,offset_ms=0,preserve_velocity=False):
+    """Assign notation voices without changing decoded performance boundaries."""
+    grid=score_grid(score);inverse=sorted((y,x) for x,y in harmony['alignment']['anchors'])
+    groups={};events=[];written=[];ends={};tick_ends={};shown=set()
+    for n in decoded:
+        start=round(max(0,min(score['duration'],n['start']+offset_ms/1000)),6)
+        end=round(max(0,min(score['duration'],n['end']+offset_ms/1000)),6)
+        if end<=start:continue
+        velocity=n.get('velocity',.65) if preserve_velocity else .65
+        if type(velocity) not in (int,float) or not 0<=velocity<=1:raise ValueError('Invalid generated note velocity.')
+        groups.setdefault((start,end,velocity),[]).append(n['midi'])
+    for (start,end,velocity),pitches in sorted(groups.items()):
+        a=max(0,round(grid.tick(interpolate(inverse,start))));b=max(a+1,round(grid.tick(interpolate(inverse,end))))
+        b=min(score['measures'][-1]['endTick'],b)
+        if b<=a:continue
+        voice=next(v for v in range(2,len(ends)+3) if ends.get(v,0)<=start+1e-7 and tick_ends.get(v,0)<=a)
+        ends[voice]=end;tick_ends[voice]=b
+        bar=next((bar for bar in harmony['bars'] if bar['startTick']<=a<bar['endTick']),harmony['bars'][-1])
+        show=bar['root'] is not None and bar['number'] not in shown
+        if show:shown.add(bar['number'])
+        identity=f'amt-{len(events)+1}'
+        events.append({'id':identity,'start':start,'end':end,'pitches':pitches,'staff':2,'voice':voice,'velocity':velocity})
+        written.append({'id':identity,'startTick':a,'endTick':b,'pitches':pitches,'staff':2,'voice':voice,'velocity':velocity,'chordId':bar['chordId'],'showChord':show})
+    xml,fragments=engrave_block_chords(score,written,harmony['choices'],'Piano arrangement')
+    return events,written,xml,fragments
+
+
+def generate_accompaniment(score,harmony,seed=0,on_progress=None,selection=None,base_arrangement=None):
     if score['meter']!='4/4':raise ValueError('Expressive accompaniment currently supports 4/4. The block-chord version remains available.')
-    if style not in STYLES or type(density)!=int or density not in (0,1,2) or type(variant)!=int or variant not in (0,1,2):raise ValueError('Invalid accompaniment settings.')
-    if voicing not in ('layered','compact'):raise ValueError('Invalid voicing.')
-    settings={'style':style,'density':density,'variant':variant,'voicing':voicing};key=harmony['fingerprint']+json.dumps(settings,sort_keys=True)
+    if type(seed)!=int or not 0<=seed<=0xffffffff:raise ValueError('Invalid accompaniment seed.')
+    settings={'mode':'amt','seed':seed};base_notes=None
+    if selection is not None:
+        if not isinstance(selection,dict) or set(selection)!={'firstMeasure','lastMeasure'} or any(type(selection[k])!=int for k in selection) or not 1<=selection['firstMeasure']<=selection['lastMeasure']<=len(score['measures']):raise ValueError('Invalid accompaniment measure range.')
+        from .project import restore_texture
+        base=restore_texture(base_arrangement,score,harmony)
+        offset=harmony['alignment']['offsetMs']/1000
+        base_notes=[{'start':e['start']-offset,'end':e['end']-offset,'midi':p} for e in base['events'] for p in e['pitches']]
+        settings.update(range=selection,baseFingerprint=base['fingerprint'])
+    key='amt-medium-v1:'+harmony['fingerprint']+':'+json.dumps(settings,sort_keys=True)
     with LOCK:
         if key in CACHE:return copy.deepcopy(CACHE[key])
-        from .texture_model import infer
-        start=time.perf_counter();proposals,references,manifest=infer(score,harmony,style,density,variant,structured=voicing=='layered')
-        written=(layer_left_hand if voicing=='layered' else reduce_left_hand)(score,harmony,proposals,density);events,notation,xml,fragments=render_texture(score,harmony,written)
-        identity={'version':'neural-left-v2','harmony':harmony['fingerprint'],'settings':settings,'model':manifest['files'],'events':events}
+        from .amt_model import infer
+        start=time.perf_counter();decoded,references,manifest=infer(score,harmony,seed,on_progress,selection,base_notes)
+        if on_progress:on_progress({'stage':'engraving','progress':.98})
+        events,notation,xml,fragments=perform_model_notes(score,harmony,decoded,harmony['alignment']['offsetMs'])
+        if not events:raise ValueError('AMT did not generate playable accompaniment. Please regenerate.')
+        identity={'version':'amt-medium-v1','harmony':harmony['fingerprint'],'settings':settings,'model':manifest['files'],'events':events}
         result={'sourceFingerprint':score['scoreFingerprint'],'harmonyFingerprint':harmony['fingerprint'],'fingerprint':hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest(),
-                'settings':settings,'events':events,'writtenChords':notation,'xml':xml,'chordFragments':fragments,'references':references,'model':{'version':'neural-left-v2','commit':manifest['commit'],'files':manifest['files']},'generationSeconds':round(time.perf_counter()-start,3)}
+                'settings':settings,'events':events,'writtenChords':notation,'xml':xml,'chordFragments':fragments,'references':references,'model':{'version':'amt-medium-v1','commit':manifest['commit'],'revision':manifest.get('revision'),'files':manifest['files']},'generationSeconds':round(time.perf_counter()-start,3)}
         CACHE[key]=result
         while len(CACHE)>6:CACHE.popitem(last=False)
         return copy.deepcopy(result)

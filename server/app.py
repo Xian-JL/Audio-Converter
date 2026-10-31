@@ -19,6 +19,9 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from .audio import MAX_BYTES, FFMPEG, FFPROBE
 
 ROOT = Path(__file__).resolve().parents[1]
+# Source runs read package.json; portable bundles carry the build's version asset.
+VERSION_FILE = ROOT / 'package.json' if (ROOT / 'package.json').is_file() else ROOT / 'dist/app-version.json'
+APP_VERSION = json.loads(VERSION_FILE.read_text(encoding='utf-8'))['version']
 RUNTIME = ROOT / '.runtime'
 app = Flask(__name__, static_folder=str(ROOT / 'dist'), static_url_path='')
 app.config['MAX_CONTENT_LENGTH'] = MAX_BYTES + 512 * 1024
@@ -79,7 +82,10 @@ def run_texture(job_id,body,melody,harmony):
         workers=job.setdefault('textureProcesses',{})
         if workers:raise ValueError('An arrangement is already running. Cancel it before starting another.')
         path=owned_dir(job_id)/(token+'.texture')
-        path.write_text(json.dumps({'score':melody,'harmony':harmony,'style':body.get('style','lyrical'),'density':body.get('density',1),'variant':body.get('variant',0),'voicing':body.get('voicing','layered')}),encoding='utf-8')
+        seed=body.get('seed',int(token[:8],16))
+        if type(seed)!=int or not 0<=seed<=0xffffffff:raise ValueError('Invalid accompaniment seed.')
+        from .emotional_score import checked
+        path.write_text(json.dumps({'score':melody,'harmony':harmony,'seed':seed,'sections':body.get('sections'),'emotion':checked(body.get('emotion'))}),encoding='utf-8')
         process=start_texture_process(path)
         workers[token]=process
     try:
@@ -92,7 +98,22 @@ def run_texture(job_id,body,melody,harmony):
         return value['result']
     finally:
         with lock:workers.pop(token,None)
-        path.unlink(missing_ok=True);path.with_suffix('.result').unlink(missing_ok=True)
+        for transient in (path,path.with_suffix('.result'),path.with_suffix('.progress'),path.with_suffix('.progress.tmp')):
+            try:transient.unlink(missing_ok=True)
+            except OSError:pass  # The owned task-directory cleanup retries later.
+
+@app.get('/api/jobs/<job_id>/texture/<token>/progress')
+def texture_progress(job_id,token):
+    if not re.fullmatch('[a-f0-9]{32}',token):return jsonify(error='Invalid arrangement request.'),400
+    with lock:
+        job=jobs.get(job_id)
+        if not job:return jsonify(error='Task is no longer active.'),404
+        process=job.get('textureProcesses',{}).get(token)
+    path=owned_dir(job_id)/(token+'.progress')
+    try:
+        if path.stat().st_size<=4096:return jsonify(json.loads(path.read_text(encoding='utf-8')))
+    except (OSError,ValueError):pass
+    return jsonify(stage='preparing' if process else 'waiting',progress=0)
 
 @app.delete('/api/jobs/<job_id>/texture/<token>')
 def cancel_texture(job_id,token):
@@ -171,12 +192,14 @@ def health():
     except RuntimeError:missing.append('GAME model (run setup-game.ps1)')
     if any(not (ROOT / f'dist/piano/{note}.mp3').is_file() for note in piano_names):
         missing.append('piano samples')
-    from .texture_model import available
+    from .amt_model import available
     try:
         catalog=json.loads((ROOT/'dist/instruments/manifest.json').read_text(encoding='utf-8'))
         if any(not (ROOT/'dist/instruments'/instrument/name).is_file() for instrument,bank in catalog['instruments'].items() for name in bank['files']):missing.append('instrument samples')
     except (OSError,ValueError,KeyError):missing.append('instrument samples')
-    return jsonify(ready=not missing, missing=missing,engine='game',scoreVersion=16,appVersion='0.4.0',textureReady=available())
+    from .emotion_runtime import available as emotion_available
+    emotion_models={name:emotion_available(name) for name in ('emo','midi-emotion')}
+    return jsonify(ready=not missing, missing=missing,engine='game',scoreVersion=20,appVersion=APP_VERSION,textureReady=any(emotion_models.values()),emotionModels=emotion_models)
 
 @app.post('/api/jobs')
 def upload():
@@ -342,18 +365,19 @@ def harmony(job_id):
     if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
     try:
         from .editing import score_for_request
-        from .basic_harmony import generate_basic_harmony
+        from .basic_harmony import harmony_for_settings
         melody=score_for_request(result,body)
         if body.get('sourceFingerprint')!=melody['scoreFingerprint']:
             return jsonify(error='The melody has changed. Reload the score before generating chords.'),409
-        return jsonify(generate_basic_harmony(melody,body.get('locks'),body.get('phraseStarts'),body.get('chordOffsetMs',0)))
+        return jsonify(harmony_for_settings(melody,body))
     except (ValueError,TypeError) as error:
         return jsonify(error=str(error)),400
 
 @app.post('/api/jobs/<job_id>/texture')
 def texture(job_id):
     body=request.get_json(silent=True)
-    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:return jsonify(error='Invalid accompaniment settings.'),400
+    if not isinstance(body,dict):return jsonify(error='Invalid accompaniment settings.'),400
+    if (request.content_length or 0)>12*1024*1024:return jsonify(error='Accompaniment request is too large (maximum 12 MB).'),413
     with lock:
         job=jobs.get(job_id)
         if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready yet.'),404
@@ -361,11 +385,16 @@ def texture(job_id):
     if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
     try:
         from .editing import score_for_request
-        from .basic_harmony import generate_basic_harmony
+        from .basic_harmony import harmony_for_settings
         melody=score_for_request(result,body)
         if body.get('sourceFingerprint')!=melody['scoreFingerprint']:return jsonify(error='The melody has changed. Reload the score.'),409
-        harmony=generate_basic_harmony(melody,body.get('locks'),body.get('phraseStarts'),body.get('chordOffsetMs',0))
+        harmony=harmony_for_settings(melody,body)
         if body.get('harmonyFingerprint')!=harmony['fingerprint']:return jsonify(error='The harmony has changed. Generate the accompaniment again.'),409
+        from .instrumental import selected_sections
+        if harmony.get('policy')!='adaptive-block-v1':raise ValueError('Generate melody-led block chords before composing instrumental sections.')
+        if not selected_sections(melody,harmony,body.get('sections')):raise ValueError('No instrumental section has two complete melody-free measures.')
+        from .emotional_score import checked
+        checked(body.get('emotion'))
         return jsonify(run_texture(job_id,body,melody,harmony))
     except (ValueError,TypeError) as error:return jsonify(error=str(error)),400
 
@@ -382,13 +411,13 @@ def rebar(job_id):
         from .editing import score_for_request
         original=score_for_request(result,body,anchor=False)
         if body.get('sourceFingerprint')!=original['scoreFingerprint']:return jsonify(error='The melody has changed. Reload the score.'),409
-        if not body.get('anchorNoteId'):raise ValueError('Please select a melody note onset as the downbeat.')
+        if not body.get('anchorNoteId') and not body.get('downbeats'):raise ValueError('Please select a melody note onset as the downbeat.')
         rebuilt=score_for_request(result,body)
         rebuilt['sourceName']=name
         harmony=None
         if body.get('includeHarmony'):
-            from .basic_harmony import generate_basic_harmony
-            harmony=generate_basic_harmony(rebuilt)
+            from .basic_harmony import harmony_for_settings
+            harmony=harmony_for_settings(rebuilt,{})
         return jsonify(score=rebuilt,harmony=harmony)
     except (ValueError,TypeError) as error:return jsonify(error=str(error)),400
 

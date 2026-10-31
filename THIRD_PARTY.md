@@ -6,13 +6,23 @@ GAME 1.0.3 small ONNX 来自 https://github.com/openvpi/GAME ，驱动保持 GF 
 
 MDX 及增强 Demucs ONNX 的下载来源与哈希记录于 models/manifest.json、models/demucs-manifest.json。相应许可证保留于 models/demucs-LICENSE.txt 和 models/demucs-onnx-LICENSE.txt。MDX 配置与来源资料保留，用于原分离流程及资源验证。
 
+## 情感器乐模型（v0.7.0）
+
+EMO-Disentanger 官方代码来自 https://github.com/Yuer867/EMO-Disentanger ，固定提交 2aba686574e371efff90ed51e356ca51e662f442，MIT 许可。vendor/emo-disentanger 保存原始文件、LICENSE、SOURCE.json；CPU/Transformers 兼容与采样适配在本项目 server/emotion_runtime.py、emotional_score.py，原始源码不改写。Functional 两阶段权重来自作者 README 的 best_weight.zip。215/328 项词表取自作者 events.zip 的指定 dictionary.pkl，通过限制普通数据的解析转换为 server/data/emo-stage1-vocabulary.json、emo-stage2-vocabulary.json；来源与摘要见 VOCABULARY_SOURCE.json，不分发完整训练数据。
+
+midi-emotion 官方代码来自 https://github.com/serkansulun/midi-emotion ，固定提交 3c8aaf0da0bf854515817d5756a280ee06630103。vendor/midi-emotion 保存原始源码、SOURCE.json 和 LICENSE.md，源码为 GPL-3.0-or-later，不将它标为 MIT。官方 continuous_concat 权重用于本机实验与推理。源码、权重与训练录音的权利不能混同，未来分发需分别遵守对应许可，不能因资源可公开下载就假定可任意再分发。
+
+两模型的本地固定校验记录为 models/emotion-models-manifest.json；大权重不提交仓库。当前结果尚未经用户听感验收。AMT 仅保留历史实现与回归，当前界面生成入口不再使用它。
+
 ## 和弦与织体
 
 基本和弦使用 AccoMontage2 https://github.com/billyblu2000/AccoMontage2 ，提交 39184ae5cd8be1de289d116d12b69892a034f1b6。已转换的纯 JSON 资料位于 server/data/basic-harmony.json；vendor/AccoMontage2/SOURCE.json 记录生成输入的原始哈希，原输入与开发转换工具在收束时移除，MIT 许可证保留。
 
-丰富伴奏使用 AccoMontage https://github.com/zhaojw1998/AccoMontage ，提交 9630afe08eb2e90b0b94fcf97154d9385fda5e4c。vendor/AccoMontage 只保留实际推理加载的四个原始模块，SOURCE.json 记录保留子集，MIT 许可证原文保留。模型、压缩候选库及官方资源下载地址/哈希记录于 models/accomontage/manifest.json。
+历史器乐生成使用 John Thickstun、David Hall、Chris Donahue、Percy Liang 的 Anticipatory Music Transformer https://github.com/jthickstun/anticipation ，提交 af37397922665a0fb8d474d7988b0f3755a38d45。vendor/anticipation 保留官方编码、序列操作与采样源码，LICENSE.txt 和 SOURCE.json 记录 Apache-2.0 原文及哈希。Medium 权重来自 https://huggingface.co/stanford-crfm/music-medium-800k ，固定修订 93b6eb7e09bad33be6cb2ebd50ce5279cbfde7f6，模型许可 Apache-2.0。下载 URL、大小、SHA-256 见 models/amt-medium-manifest.json；不在 Git 中提交权重。
 
-短语检索、左手缩编和时间映射为本项目适配。源码许可证不自动等同于所有训练曲目材料的独立授权；此项目当前用于用户本机分析与试听。
+CPU 缓存采样、单钢琴生成约束、5 秒上下文、分段/重试、局部重生成、时间映射和 MusicXML 记谱为本项目适配。不是重新训练的模型，也不宣称完全复现作者演示中的人工选段过程。
+
+历史 AccoMontage https://github.com/zhaojw1998/AccoMontage ，提交 9630afe08eb2e90b0b94fcf97154d9385fda5e4c，保留 MIT 许可证和原始模块供旧工程回归参考。其资源来源见 models/accomontage/manifest.json。当前入口已不使用该 VAE；旧版风格和原始解码结果仍可从工程恢复。模型源码许可不自动等同于训练曲目的独立授权，本项目用于用户本机处理与试听。
 
 ## 音色、媒体工具与界面依赖
 

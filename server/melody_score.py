@@ -9,7 +9,7 @@ import math
 import re
 import xml.etree.ElementTree as ET
 from .score import validate_settings, tag, spell_pitch, timestamp, KEYS
-from .meter_grid import make_grid
+from .meter_grid import make_grid, calibrated_grid
 
 DIVISIONS=32
 DURATIONS=[(128,'whole',False),(96,'half',True),(64,'half',False),(48,'quarter',True),(32,'quarter',False),
@@ -17,7 +17,7 @@ DURATIONS=[(128,'whole',False),(96,'half',True),(64,'half',False),(48,'quarter',
            (3,'64th',True),(2,'64th',False),(1,'128th',False)]
 
 
-def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
+def generate_melody_score(result,bpm,meter,key,anchor_note_id=None,downbeats=None):
     bpm,meter,key=validate_settings(bpm,meter,key)
     duration=float(result['duration'])
     if not math.isfinite(duration) or duration<=0:raise ValueError('Audio duration must be positive.')
@@ -29,7 +29,16 @@ def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
         if not all(math.isfinite(float(n[k])) for k in ('start','end','midi')) or not 0<=n['start']<n['end']<=duration+1e-5 or n['start']<last_end-1e-5 or not 0<=n['midi']<=127:
             raise ValueError('Invalid GF note sequence.')
         last_end=n['end']
-    anchor_index=None
+    anchor_index=None;points=None
+    if downbeats is not None:
+        if not isinstance(downbeats,list) or not 1<=len(downbeats)<=5:raise ValueError('Choose between 1 and 5 downbeat references.')
+        by_id={value:i for i,value in enumerate(logical_ids)};points=[]
+        for point in downbeats:
+            if not isinstance(point,dict) or not isinstance(point.get('noteId'),str) or point['noteId'] not in by_id or type(point.get('measure'))!=int or not 1<=point['measure']<=4096:raise ValueError('Each downbeat needs a melody onset and a measure number (1–4096).')
+            index=by_id[point['noteId']]
+            points.append({'noteId':point['noteId'],'measure':point['measure'],'time':raw[index]['start'],'index':index})
+        if any(a['time']>=b['time'] or a['measure']>=b['measure'] for a,b in zip(points,points[1:])):raise ValueError('Downbeat times and measure numbers must increase without duplicates.')
+        anchor_note_id=points[0]['noteId']
     if anchor_note_id is not None:
         ids={value:i for i,value in enumerate(logical_ids)}
         if not isinstance(anchor_note_id,str) or anchor_note_id not in ids:raise ValueError('Please select a melody note onset as the downbeat.')
@@ -37,21 +46,27 @@ def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
     anchor_time=raw[anchor_index]['start'] if anchor_index is not None else None
     divisions=DIVISIONS
     while True:
-        grid=make_grid(bpm,meter,divisions,anchor_time)
+        grid=calibrated_grid(bpm,meter,divisions,points) if points else make_grid(bpm,meter,divisions,anchor_time)
         total_ticks=max(len(raw),1,math.ceil(grid.tick(duration)-1e-8))
         anchor_tick=round(grid.tick(anchor_time)) if anchor_time is not None else None
         enough=len(raw)<=math.ceil(grid.tick(duration)-1e-8)
         if anchor_index is not None:enough=enough and anchor_index<=anchor_tick and len(raw)-anchor_index<=total_ticks-anchor_tick
+        if points:
+            bounded=[(-1,-1)]+[(p['index'],round(grid.tick(p['time']))) for p in points]+[(len(raw),total_ticks)]
+            enough=enough and all(bi-ai<=bt-at for (ai,at),(bi,bt) in zip(bounded,bounded[1:]))
         if enough:break
         if divisions==64:raise ValueError('Too many notes for this notation resolution.')
         divisions=64
     duration_types=DURATIONS if divisions==DIVISIONS else [(n*2,kind,dotted) for n,kind,dotted in DURATIONS]+[(1,'256th',False)]
-    starts=[]
+    starts=[];fixed={p['index']:round(grid.tick(p['time'])) for p in points} if points else {}
     for i,n in enumerate(raw):
         preferred=grid.snap(n['start'])
         ceiling=total_ticks-(len(raw)-i)
         if anchor_index is not None and i<anchor_index:ceiling=min(ceiling,anchor_tick-(anchor_index-i))
-        start=anchor_tick if i==anchor_index else min(ceiling,max(starts[-1]+1 if starts else 0,preferred))
+        if points:
+            later=next((p for p in points if p['index']>i),None)
+            if later:ceiling=min(ceiling,fixed[later['index']]-(later['index']-i))
+        start=fixed[i] if i in fixed else anchor_tick if i==anchor_index else min(ceiling,max(starts[-1]+1 if starts else 0,preferred))
         starts.append(start)
     notes=[];events=[];notated=[]
     for i,n in enumerate(raw):
@@ -116,10 +131,11 @@ def generate_melody_score(result,bpm,meter,key,anchor_note_id=None):
     identity={'source':result.get('sourceSha256'),'engine':result.get('engineSignature'), 'notes':raw,'bpm':bpm,'meter':meter,'key':key,'notationVersion':'right-adaptive-v1'}
     base_fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,allow_nan=False).encode()).hexdigest()
     if anchor_note_id is not None:identity={**identity,'notationVersion':'right-downbeat-v1','anchorNoteId':anchor_note_id,'phase':grid.phase}
+    if points:identity={**identity,'notationVersion':'right-downbeats-v1','downbeats':[{'noteId':p['noteId'],'measure':p['measure']} for p in points]}
     fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,allow_nan=False).encode()).hexdigest()
-    return {'identityNotesJson':json.dumps(raw,sort_keys=True,allow_nan=False),'xml':xml,'bpm':bpm,'meter':meter,'key':key,'duration':duration,'noteCount':len(notes),'chordCount':0,'melodyOnly':True,
+    return {**({'downbeats':[{'noteId':p['noteId'],'measure':p['measure'],'time':p['time'],'measureNumber':next(m['number'] for m in measures if m['startTick']==fixed[p['index']])} for p in points]} if points else {}),'identityNotesJson':json.dumps(raw,sort_keys=True,allow_nan=False),'xml':xml,'bpm':bpm,'meter':meter,'key':key,'duration':duration,'noteCount':len(notes),'chordCount':0,'melodyOnly':True,
             'engine':'game','engineSignature':result.get('engineSignature'),'sourceSha256':result.get('sourceSha256'),'scoreFingerprint':fingerprint,
             'notes':notes,'events':events,'notatedEvents':notated,'fragments':fragments,'divisions':divisions,'measures':measures,
-            'baseFingerprint':base_fingerprint,'grid':{'phaseSeconds':grid.phase,'pickupTicks':grid.pickup_ticks},
+            'baseFingerprint':base_fingerprint,'grid':{'phaseSeconds':grid.phase,'pickupTicks':grid.pickup_ticks,**({'anchors':list(grid.anchors)} if points else {})},
             'downbeat':None if anchor_note_id is None else {'noteId':anchor_note_id,'time':anchor_time,'phaseSeconds':grid.phase,'measureNumber':next(m['number'] for m in measures if m['startTick']==anchor_tick)},
             'maxNotationShiftMs':round(max([abs(n['notatedStart']-n['start'])*1000 for n in notes]+[0]),2)}

@@ -1,5 +1,6 @@
+// Historical UI scenario. See ../README.md for the maintained v0.7.2 suite.
 import {createHash} from 'node:crypto';
-import {chromium,browserPath,routeQaApi} from './browser-runtime.mjs';
+import {chromium,browserPath,routeQaApi} from '../browser-runtime.mjs';
 import fs from 'node:fs/promises';
 await fs.mkdir('tests/output',{recursive:true});
 import assert from 'node:assert/strict';
@@ -24,7 +25,7 @@ async function downloadXml(){await tools();if(!await page.locator('.navigation-s
 
 async function samePng(a,b){if(a.hash===b.hash)return;const close=await page.evaluate(async([one,two])=>{const images=await Promise.all([one,two].map(async value=>{const image=new Image();image.src='data:image/png;base64,'+value;await image.decode();return image;}));const canvas=document.createElement('canvas');canvas.width=620;canvas.height=877;const ctx=canvas.getContext('2d');ctx.drawImage(images[0],0,0,620,877);const first=ctx.getImageData(0,0,620,877).data;ctx.clearRect(0,0,620,877);ctx.drawImage(images[1],0,0,620,877);const second=ctx.getImageData(0,0,620,877).data;let differences=0;for(let i=0;i<first.length;i+=4)if(Math.max(Math.abs(first[i]-second[i]),Math.abs(first[i+1]-second[i+1]),Math.abs(first[i+2]-second[i+2]))>3)differences++;canvas.width=0;return differences/(620*877)<.00005;},[a.base64,b.base64]);assert.ok(close,'Restored page differs visually');}
 async function newAnchor(id){
-  await tools();await page.getByRole('button',{name:'定位小节第一拍',exact:true}).click();await choose(id);return request('rebar',()=>page.getByRole('button',{name:'重构乐谱',exact:true}).click());
+  await tools();await page.getByRole('button',{name:'定位小节第一拍',exact:true}).click();while(await page.locator('.downbeat-point').count())await page.getByLabel('移除参考点 1',{exact:true}).click();await choose(id);return request('rebar',()=>page.getByRole('button',{name:'重构乐谱',exact:true}).click());
 }
 try{
   await load();const original=await request('harmony',()=>page.getByRole('button',{name:'生成基本和弦',exact:true}).click());

@@ -1,2 +1,5 @@
 torch==2.9.1
 pretty_midi==0.2.11
+transformers==5.4.0
+huggingface-hub>=1.9,<2
+gdown==6.5.1

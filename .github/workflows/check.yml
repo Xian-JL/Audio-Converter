@@ -15,6 +15,7 @@ jobs:
       - run: npm run build
       - run: node tests/playback.mjs
       - run: node tests/export.mjs
+      - run: node tests/notation-plan.mjs
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -24,8 +25,15 @@ jobs:
       - run: python -m unittest discover -s tests -p test_basic_harmony.py
       - run: python -m unittest discover -s tests -p test_harmony_timing.py
       - run: python -m unittest discover -s tests -p test_downbeat.py
+      - run: python -m unittest discover -s tests -p test_multidownbeat.py
       - run: python -m unittest discover -s tests -p test_workspace.py -k edit
       - run: python -m unittest discover -s tests -p test_workspace.py -k repeated_phrase
       - run: python -m unittest discover -s tests -p test_workspace.py -k project_restores
       - run: python -m unittest discover -s tests -p test_workspace.py -k ensemble
+      - run: python -m unittest discover -s tests -p test_texture.py -k raw_tones
+      - run: python -m unittest discover -s tests -p test_amt.py
+      - run: python -m unittest discover -s tests -p test_hybrid.py
+      - run: python -m unittest discover -s tests -p test_emotion.py
+      - run: python -m unittest discover -s tests -p test_phrase_development.py
+      - run: python -m unittest discover -s tests -p test_provenance.py
       - run: python -m unittest discover -s tests -p test_packaging.py

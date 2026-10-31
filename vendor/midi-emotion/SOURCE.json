@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/serkansulun/midi-emotion",
+  "commit": "3c8aaf0da0bf854515817d5756a280ee06630103",
+  "files": {
+    "LICENSE.md": "080cc8ce50905c6206b62074ea2522965ca971ada9d282ba19f8efad6a8f66ad",
+    "readme.md": "77ce7ea1bf19dc8998a2adeb02ef8d6e49647195af2d768174c60b97ee6d24d1",
+    "src/models/music_multi.py": "4bb7075d2a3403513bfbff6fb3e01301a52a6f84acf8942600a57f81322a4fa4",
+    "src/models/transformer.py": "223703f3f115293c1c7d2b46b5eab3a70ae08b721c858c53739dc9f6c60df578",
+    "src/models/build_model.py": "2592eaa7b7bae4733a5d9dbee90a4d84e8f958d1e8510e4ff4274195d2d7e667",
+    "src/data/data_processing_reverse.py": "71e323f744092239e2fabd1483443bc6d524e382e0f9c5838ff0ee2fc9a14f3d",
+    "src/data/data_processing.py": "64f2eead57726bb842c51fb90029ffec33580bdc15f2077b67c8146f368a0a52",
+    "src/generate.py": "fa899e588c254e160d2419bb0790e26440e3140514445ff0e3f3a4b3400a96eb",
+    "src/utils.py": "57c9b09f4be0254cd7cc38eb646db87f70484e2ad6a0a791df8dfe5e8599c60d"
+  }
+}

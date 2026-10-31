@@ -31,7 +31,7 @@ def align_harmony(score,bars,offset_ms=0):
         if end-start<1e-6:continue
         first=max(written[-1]['startTick']+1 if written else 0,round(grid.tick(interpolate(inverse,start))))
         last=max(first+1,round(grid.tick(interpolate(inverse,end))))
-        event={'id':f"chord-{bar['number']}",'start':round(start,6),'end':round(end,6),'pitches':bar['pitches'],'staff':2,'velocity':.65}
+        event={'id':bar.get('eventId',f"chord-{bar['number']}"),'start':round(start,6),'end':round(end,6),'pitches':bar['pitches'],'staff':2,'velocity':.65}
         events.append(event)
         written.append({**event,'startTick':first,'endTick':last,'chordId':bar['chordId']})
     for before,after in zip(written,written[1:]):before['endTick']=min(before['endTick'],after['startTick'])

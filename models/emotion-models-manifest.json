@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "files": {
+    "models/midi-emotion/continuous_concat/model_config.pt": {
+      "bytes": 1711,
+      "sha256": "ccd416ea1d42431e5b7510d487ea2d8b5c6233849a919a6f5b84164e5c648f50"
+    },
+    "models/midi-emotion/continuous_concat/model.pt": {
+      "bytes": 580433167,
+      "sha256": "2d0906da912045d3499c7bd00cb6bdbcd82651f19987b329c51f8417a5bd0702"
+    },
+    "models/midi-emotion/continuous_concat/mappings.pt": {
+      "bytes": 20143,
+      "sha256": "47afac373332988ac46219a573648cb9a86c6a1e54d8d2db9fbdcb7abc308a06"
+    },
+    "models/emo-disentanger/best_weight/Functional-two/emopia_lead_sheet_finetune/ep016_loss0.685_params.pt": {
+      "bytes": 164749001,
+      "sha256": "b292af6173c3e16e3a06b12f559dc0e4234a5c8946fc0cf12c6875725f9f8c0d"
+    },
+    "models/emo-disentanger/best_weight/Functional-two/emopia_acccompaniment_finetune_gpt2/ep300_loss0.120_params.pt": {
+      "bytes": 378638916,
+      "sha256": "7031ab21dfb2923c6d944d38034cbbeaae41091202f64110bc8997df1c13d1fa"
+    },
+    "server/data/emo-stage1-vocabulary.json": {
+      "bytes": 3870,
+      "sha256": "7663f33350ba32c99d9a3c7abb6701820cf621b39dc4645cef6da67ee5793108"
+    },
+    "server/data/emo-stage2-vocabulary.json": {
+      "bytes": 5964,
+      "sha256": "4706c3dffc51d0fd1744bb917edad3d0a40266301b53000e313f7d06b1cf3bb9"
+    }
+  }
+}

@@ -113,7 +113,7 @@ The service listens on local loopback only. `127.0.0.1` on another device means 
 
 ## Development and tests
 
-See [Architecture](ARCHITECTURE.md) for the current route and module boundaries, and [Verification](tests/README.md) for maintained checks. Historical UI scenarios are retained under `tests/legacy-ui`; private example projects and listening WAVs are not distributed in GitHub.
+See [Architecture](ARCHITECTURE.md) for the current route and module boundaries, and [Verification](tests/README.md) for maintained checks. Only maintained verification scripts are retained; private example projects and listening WAVs are not distributed in GitHub.
 
 ```powershell
 npm.cmd run build
@@ -158,7 +158,7 @@ The repository is public. An original-project license has not been selected for 
 
 src, server, scripts and tests contain source and regression scripts. Keep public, models, tools and vendor for samples, inference resources, media tools and upstream notices. Existing .venv and node_modules are reused rather than reinstalled during cleanup.
 
-dist is the current built frontend. tests/output is regenerable test output. release holds separately built portable distributions; 0.7.2 publishes source without a newly built portable package. Preserve accepted projects and WAV references under exports, original model archives, source recordings and historical work. Clean only explicitly selected regenerable temporary files. Store personal audio and .acproject.json files outside this repository; neither belongs on GitHub. Do not clear .runtime while a task is active.
+dist is the current built frontend. tests/output is regenerable test output. release keeps only the current desktop application. Preserve accepted projects, WAV references and required compatibility fixtures. Download archives, obsolete weights/packages/designs and regenerable caches have been deleted; immutable duplicate resources share local NTFS hard links. Store personal audio and .acproject.json files outside this repository; neither belongs on GitHub. Do not clear .runtime while a task is active.
 
 Browser regression can use an isolated API on port 8770: keep the normal frontend on 8765, run `.venv\Scripts\python.exe -B tests/serve_ui.py 8770`, and set `$env:QA_API_URL='http://127.0.0.1:8770'` before running the legacy browser scripts. `tests/v4.mjs` already forwards its API calls to that isolated service. Neither route writes to real user jobs. For offline timbre/ensemble checks, run the Vite development frontend and `node tests/ensemble-sound.mjs`.
 

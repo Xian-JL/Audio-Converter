@@ -11,6 +11,5 @@ if (-not (Test-Path -LiteralPath $iconPath)) { throw 'The approved Shengjian ico
 $executable = Join-Path $destination 'LocalAudio.exe'
 & $compiler /nologo /target:winexe /platform:x64 /optimize+ "/out:$executable" "/win32icon:$iconPath" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll (Join-Path $iconDirectory 'Launcher.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Desktop launcher compilation failed.' }
-Copy-Item -LiteralPath $iconPath -Destination (Join-Path $destination 'LocalAudio.ico')
 Copy-Item -LiteralPath $iconPath -Destination (Join-Path $destination 'Shengjian.ico')
 Write-Host "Desktop launcher built: $executable"

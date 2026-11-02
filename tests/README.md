@@ -27,8 +27,8 @@ node tests/notation.mjs
 
 The two complete-project scenarios require private `exports/*.acproject.json` fixtures that intentionally are not in GitHub. A fresh clone can run source/CI checks and `layout.mjs` using generated synthetic fixtures. Missing private examples are not a reason to download copyrighted songs.
 
-## Audio and historical scenarios
+## Audio checks and cleanup
 
-`sound.mjs` and `ensemble-sound.mjs` use Vite on port 5173 and the local samples; `emotion-preview.mjs` is a preview-authoring utility. Preview utilities may write exports, so choose new names before authoring a new reference. Python example scripts refuse to overwrite their output files.
+`sound.mjs` and `ensemble-sound.mjs` use Vite on port 5173 and local samples. `desktop_smoke.py` checks the explicit packaged app lifecycle; see desktop/README.md. `tests/output` is regenerable verification output, ignored by Git, and may be deleted after checks.
 
-`legacy-ui/` retains scenarios written for the old v0.4–v0.7.1 interfaces and model routes. They are historical development records, not current release gates; their selectors and whole-song generation assumptions deliberately are not restored to the product. Current coverage is consolidated in the scripts above. Historical release notes cite their original filenames. `tests/output` is local verification evidence and is ignored by Git.
+Obsolete UI scenarios and one-off sample/preview authoring scripts have been deleted. Current coverage is consolidated in the maintained scripts above. Historical release notes may cite filenames from earlier releases. AMT/AccoMontage weights are not needed to restore saved candidates and are no longer installed locally; the optional full-AMT inference test requires explicitly preparing its resources again.

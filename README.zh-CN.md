@@ -82,9 +82,9 @@ cd Audio-Converter
 
 EMO 现在按引入、发展与收束组织器乐乐句，保留主题，减少连续照搬的音型，并衔接后续旋律。原有情感与张力选项不变。新增 exports/EMO-呜-乐句发展示例.acproject.json：第三个候选标有“乐句发展”，旧两个候选、前奏和原旋律保持不变，可直接试听对比。对应间奏钢琴试听为 EMO-呜-间奏乐句发展试听.wav。此具体示例已经用户试听认可，0.7.2 保留其算法与文件；示例属于本机私有文件，不随 GitHub 源码发布。
 
-## 新版对照示例
+## 本机试听基线
 
-本机已准备 exports/情感器乐-呜-对照示例.acproject.json，打开后在“试听版本”切换 EMO 与 MIDI Emotion。“忧伤、有力量 / 逐渐增强”是明确指定的目标，是否贴合歌曲仍需试听。exports 下另有两份间奏钢琴试听 WAV，包含间奏前后各六秒旋律上下文，不是原录音。
+当前保留 exports/EMO-呜-乐句发展示例.acproject.json 和对应的间奏乐句发展试听 WAV，工程内包含三个可切换候选。旧的独立对照文件与重复试听已删除；另保留一份 AMT 工程用于现行兼容回归，不需要旧推理权重即可重开。
 
 ## 谱面自动简化
 
@@ -98,7 +98,7 @@ EMO 现在按引入、发展与收束组织器乐乐句，保留主题，减少�
 
 ## 维护与验证
 
-当前路线与模块边界见 [ARCHITECTURE.md](ARCHITECTURE.md)，验证入口见 [tests/README.md](tests/README.md)。已过时的界面脚本归入 tests/legacy-ui，保留研究记录；0.7.2 使用 studio、layout 与 notation-ui 作为主要界面回归。
+当前路线与模块边界见 [ARCHITECTURE.md](ARCHITECTURE.md)，验证入口见 [tests/README.md](tests/README.md)。已删除过时的界面场景与临时实验脚本；使用 studio、layout 与 notation-ui 作为主要界面回归。
 
 ```powershell
 npm.cmd run build
@@ -162,6 +162,6 @@ GitHub Actions 仅进行前端构建、Node 检查与轻量记谱/和弦回归�
 
 src、server、scripts、tests 保存源码与回归脚本；public、models、tools、vendor 保存采样、模型、媒体工具及上游来源，日常运行需要保留。已有 .venv 和 node_modules 复用，不为清理而重复安装。
 
-dist 为当前网页构建；tests/output 为可重新生成的测试结果；release 保存另行制作的便携包；本版仅发布源码，没有重打便携包。tests/output 为可再生成的检查证据。已认可的 exports 工程与试听、模型原包、原始歌曲和历史作品应保留；只按明确范围清理可再生成的临时文件。真实歌曲与自己的 .acproject.json 请保存在项目目录之外，不提交到 GitHub。不要在运行任务期间清理 .runtime。
+dist 为当前网页构建；tests/output 为可重新生成的测试结果；release 仅保留当前桌面软件。保留已认可工程与试听，以及必要的兼容回归夹具；旧压缩包、旧模型权重、旧软件包与过时实验脚本已直接删除，没有另行归档。开发与软件目录中的固定资源以 NTFS 硬链接共用磁盘内容，设置和可变源码独立。tests/output 为可再生成的检查证据。真实歌曲与自己的 .acproject.json 请保存在项目目录之外，不提交到 GitHub。不要在运行任务期间清理 .runtime。
 
 中央只保留单行播放/进度与最大化整页乐谱。小节跳转、循环范围、页码和页面密度统一收在右侧“演奏 → 谱面与播放”；透明翻页键仍紧邻谱面两侧。保持 A4 等比完整显示，因此宽高比例与屏幕不同时会保留必要留白。

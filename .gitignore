@@ -64,3 +64,4 @@ release/
 *.mp4
 !public/**/*.mp3
 /exports/
+.desktop/

@@ -14,7 +14,9 @@ class PortableArchiveTests(unittest.TestCase):
             files={'runtime/Lib/site-packages/librosa/__init__.pyi':'from .core import load',
                    'runtime/Lib/site-packages/librosa/tests/test_audio.py':'test',
                    'runtime/Lib/site-packages/example/include/api.h':'header',
-                   'runtime/Lib/site-packages/example/licenses/include/LICENSE.txt':'license'}
+                   'runtime/Lib/site-packages/example/licenses/include/LICENSE.txt':'license',
+                   '.desktop/browser/Default/History':'private browser profile',
+                   '.runtime/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/analysis.json':'private analysis'}
             for name,text in files.items():
                 path=bundle/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text)
             archive=root/'portable.zip';archive_bundle(bundle,archive)
@@ -24,5 +26,6 @@ class PortableArchiveTests(unittest.TestCase):
                 self.assertIn('runtime/Lib/site-packages/example/licenses/include/LICENSE.txt',names)
                 self.assertNotIn('runtime/Lib/site-packages/librosa/tests/test_audio.py',names)
                 self.assertNotIn('runtime/Lib/site-packages/example/include/api.h',names)
+                self.assertFalse(any(name.startswith(('.desktop/','.runtime/')) for name in names))
 
 if __name__=='__main__':unittest.main()

@@ -1,7 +1,7 @@
 export const en = {
   restartService: 'Close the old service and run Start.cmd again.',
   gameMissing: 'GAME model is missing. Run setup-game.ps1 first.',
-  title: 'Local Audio',
+  title: 'Shengjian',
   subtitle: 'Your track. Your computer.',
   privacy: 'Processed on this computer',
   intro: 'Listen. Transcribe. Play.',
@@ -64,7 +64,7 @@ export const en = {
 export const zh: typeof en = {
   restartService: '请关闭旧服务窗口，重新运行 Start.cmd。',
   gameMissing: '缺少 GAME 模型，请先运行 setup-game.ps1。',
-  title: '本地音频',
+  title: '声笺',
   subtitle: '你的音频，你的电脑。',
   privacy: '在本机处理',
   intro: '听音频，作乐谱，配和弦。',

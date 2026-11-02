@@ -31,7 +31,7 @@ def archive_bundle(destination,archive):
     for path in sorted(destination.rglob('*')):
         if not path.is_file():continue
         relative=path.relative_to(destination)
-        if relative.as_posix()=='bundle-manifest.json' or '__pycache__' in relative.parts or '.runtime' in relative.parts:continue
+        if relative.as_posix()=='bundle-manifest.json' or any(part in relative.parts for part in ('__pycache__','.runtime','.desktop')):continue
         if relative.parts[0]=='runtime' and not runtime_file(relative):continue
         if relative.parts[0]=='dist' and relative.as_posix() not in source_dist:continue
         files.append((relative.as_posix(),path))
@@ -91,7 +91,12 @@ def build(destination):
     # Explicit relative search path prevents accidental dependence on the source PC.
     (runtime_dir/f'python{sys.version_info.major}{sys.version_info.minor}._pth').write_text('Lib\nDLLs\nLib/site-packages\n..\nimport site\n',encoding='utf-8')
     (destination/'Start.cmd').write_bytes(b'@echo off\r\ncd /d "%~dp0"\r\n"runtime\\python.exe" -m server.app\r\nif errorlevel 1 pause\r\n')
-    (destination/'PORTABLE.txt').write_text('Local Audio v'+VERSION+'\nExtract the entire folder, then run Start.cmd.\nNo Python, Node.js, account or network connection is required.\nOpen http://127.0.0.1:8765 . Keep this window running.\nUser songs and saved projects are not included.\nLicenses: THIRD_PARTY.md and runtime/LICENSE*.\n',encoding='utf-8')
+    import subprocess
+    subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(ROOT/'scripts/build_desktop.ps1'),'-OutputDirectory',str(destination)],check=True)
+    shutil.copy2(ROOT/'desktop/README.md',destination/'DESKTOP.md')
+    shutil.copy2(ROOT/'scripts/install_desktop.ps1',destination/'InstallShortcut.ps1')
+    (destination/'InstallShortcut.cmd').write_bytes(b'@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0InstallShortcut.ps1" -PackageDirectory "%~dp0."\r\npause\r\n')
+    (destination/'PORTABLE.txt').write_text('Shengjian v'+VERSION+'\nDouble-click LocalAudio.exe to open the desktop workspace.\nThe local service starts automatically and stays ready in the system tray.\nClosing the window keeps the service ready; use the tray Exit menu to stop it.\nNo installed Python, Node.js, account or network connection is required.\nMicrosoft Edge or Chrome is used for the application window.\nStart.cmd remains available for diagnostic console use.\nUser songs and saved projects are not included.\nLicenses: THIRD_PARTY.md and runtime/LICENSE*.\n',encoding='utf-8')
     manifest={'version':VERSION,'python':sys.version,'distributions':{name:dist.version for name,dist in sorted(installed.items())},'files':{}}
     for path in sorted(destination.rglob('*')):
         if path.is_file():

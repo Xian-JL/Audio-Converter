@@ -1,4 +1,4 @@
-# Audio Converter · v0.7.2
+# 声笺 · Shengjian · v0.7.2
 
 [简体中文](README.zh-CN.md) · [Specification](SPEC.md) · [Third-party credits](THIRD_PARTY.md)
 
@@ -41,6 +41,12 @@ Maintainers can build a portable folder after Setup and a frontend build:
 ```
 
 The output directory must not exist. The packager collects the installed dependency closure, Python runtime, local models, tools, built frontend and licenses, with SHA-256 provenance. User songs, projects and runtime jobs are excluded. Copy/compress the entire folder; this offline distribution is much larger than source alone.
+
+## Packaged desktop app
+
+The local desktop build runs through LocalAudio.exe with its own Python, models, samples and media tools. The launcher starts the hidden service automatically, waits for readiness and opens an Edge/Chrome app window using a separate profile. Closing the window keeps the service ready in the tray; opening again reuses it. Exit through the tray menu to stop the service. No Windows login startup entry is installed. Save your project before closing; model inference can still load weights on first use.
+
+See [desktop/README.md](desktop/README.md) for building and maintaining the desktop shortcut. Keep the complete portable folder, not just the EXE. The ordinary source checkout still uses the setup instructions above.
 
 ## Everyday use
 

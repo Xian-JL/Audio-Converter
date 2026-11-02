@@ -6,7 +6,7 @@ export default function StudioHeader({ language, onLanguage, ready, title, subti
 }) {
   return <header className="site-header">
     <a className="brand" href="#" aria-label={title}>
-      <span className="brand-icon" aria-hidden="true">♫</span>
+      <span className="brand-icon" aria-hidden="true"><img src="/app-icon.png" alt="" /></span>
       <span>{title}<small>{subtitle}</small></span>
       <span className="release-tag">v{version}</span>
     </a>

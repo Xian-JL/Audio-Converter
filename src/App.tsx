@@ -43,7 +43,7 @@ export default function App() {
   const urlRef = useRef<string | null>(null);
   useEffect(() => {
     document.documentElement.lang = language === 'en' ? 'en' : 'zh-CN';
-    document.title = language === 'en' ? 'Local Audio · Converter & Vocal Score' : '本地音频 · 转换与演唱乐谱';
+    document.title = language === 'en' ? 'Shengjian · Voice to Score' : '声笺 · 旋律转谱与编配';
   }, [language]);
   useEffect(() => {
     let active = true;

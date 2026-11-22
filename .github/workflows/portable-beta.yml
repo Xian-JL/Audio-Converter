@@ -1,0 +1,76 @@
+name: Publish Windows portable beta
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: windows-portable-release
+jobs:
+  portable:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_ASSET: Shengjian-0.7.2-Windows-x64.zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Restore the verified baseline runtime and resources
+        shell: pwsh
+        run: |
+          gh release download v0.7.2-desktop --pattern $env:BASE_ASSET --dir $env:RUNNER_TEMP
+          if ($LASTEXITCODE) { throw 'Baseline download failed.' }
+          $archive = Join-Path $env:RUNNER_TEMP $env:BASE_ASSET
+          $expected = '3e69d513ab4624012a3d9388c0a644e989d1e956be289d33041c24006346d441'
+          if ((Get-FileHash -LiteralPath $archive).Hash.ToLower() -ne $expected) { throw 'Baseline checksum mismatch.' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $env:RUNNER_TEMP
+          $baseline = Join-Path $env:RUNNER_TEMP 'LocalAudio-0.7.2'
+          $runtime = Join-Path $baseline 'runtime'
+          "BASE_RUNTIME=$runtime" >> $env:GITHUB_ENV
+          Copy-Item "$baseline/models/*" models -Recurse -Force
+          Copy-Item "$baseline/tools/*" tools -Recurse -Force
+      - name: Prepare pinned transcription dependencies
+        shell: pwsh
+        run: |
+          $site = Join-Path $env:BASE_RUNTIME 'Lib/site-packages'
+          python -m pip install --disable-pip-version-check --no-deps --target $site -r requirements-instrument.txt --extra-index-url https://download.pytorch.org/whl/cpu
+          if ($LASTEXITCODE) { throw 'Dependency installation failed.' }
+          & "$env:BASE_RUNTIME/python.exe" -B scripts/transcription_resources.py
+          if ($LASTEXITCODE) { throw 'Transcription model preparation failed.' }
+      - run: npm ci
+      - run: npm run build
+      - name: Build and smoke test the bundle
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($version -notmatch '^0\.8\.0-beta\.\d+$') { throw 'This workflow publishes only 0.8.0 betas.' }
+          $package = Join-Path $env:RUNNER_TEMP "Shengjian-$version"
+          & "$env:BASE_RUNTIME/python.exe" -B scripts/package_portable.py --output $package
+          if ($LASTEXITCODE) { throw 'Bundle build failed.' }
+          & "$package/runtime/python.exe" -B -I tests/portable_smoke.py
+          if ($LASTEXITCODE) { throw 'Bundled runtime smoke test failed.' }
+          $asset = Join-Path $env:RUNNER_TEMP "Shengjian-$version-Windows-x64.zip"
+          $sum = Join-Path $env:RUNNER_TEMP 'SHA256SUMS.txt'
+          @'
+          from pathlib import Path
+          import sys
+          from scripts.package_portable import archive_bundle
+          archive_bundle(Path(sys.argv[1]),Path(sys.argv[2]))
+          '@ | python -B - $package $asset
+          if ($LASTEXITCODE) { throw 'ZIP packaging failed.' }
+          "$((Get-FileHash -LiteralPath $asset).Hash.ToLower())  $(Split-Path -Leaf $asset)" | Set-Content $sum -Encoding ascii
+          "PORTABLE_ASSET=$asset" >> $env:GITHUB_ENV
+          "PORTABLE_SUM=$sum" >> $env:GITHUB_ENV
+          "PORTABLE_TAG=v$version-desktop" >> $env:GITHUB_ENV
+      - name: Publish verified assets
+        shell: pwsh
+        run: |
+          gh release create $env:PORTABLE_TAG $env:PORTABLE_ASSET $env:PORTABLE_SUM --target $env:GITHUB_SHA --title "声笺 $($env:PORTABLE_TAG -replace '-desktop$','') · Windows 免安装测试版" --notes-file RELEASE-BETA.md --draft --prerelease
+          if ($LASTEXITCODE) { throw 'Release asset upload failed.' }
+          gh release edit $env:PORTABLE_TAG --draft=false --prerelease --latest=false
+          if ($LASTEXITCODE) { throw 'Publishing the draft failed.' }

@@ -1,4 +1,6 @@
-# Current architecture · 0.8.0-beta.1
+# Current architecture · 0.8.0-beta.2
+
+The workspace separates incoming recording and project operations from the active score. Saved revisions can carry their own musical settings and parent index. Older source-only settings and linear history are accepted on restore. Engraving is staged before replacing the displayed page.
 
 Piano (Transkun 2.0.1) and experimental guzheng (Basic Pitch 0.4.0 ONNX) bypass vocal separation. `instrument_runtime.py` verifies pinned resources; `performance_score.py` creates polyphonic two-staff scores without the vocal octave shift; `performance_editing.py` edits independent chord members; `performance_project.py` restores schema 3 without inference. Performance events retain their actual times while notation and downbeat grids can change. A separately reviewed monophonic branch enables existing harmony and EMO tools. Model availability is per source type; projects open without model weights. Preview uses key-note/fixed-pitch events; pedal controllers are saved/exported, and guzheng bend trajectories are retained in project data. Formal quality gates in [DESIGN-0.8.0.md](DESIGN-0.8.0.md) remain unmet.
 
@@ -24,7 +26,7 @@ Playback uses the original performance events with Tone samples. `lib/notation.t
 
 `adaptive_harmony.py`, `instrumental.py` and `hybrid.py` implement harmony, safe gaps and assembly/restoration. `emotional_score.py`, `phrase_development.py` and `emotion_runtime.py` implement emotional decoding and CPU checkpoint adapters. Workers are independent processes so cancellation actually stops computation. Source code and vocabulary provenance live under `vendor` and `server/data`; large weights remain local under ignored model directories.
 
-Application version comes from `package.json`: frontend header/project persistence import it, the backend reads it in a source checkout, and Vite writes `dist/app-version.json` for portable runtime use. The portable packager also reads that version. Dependency lock metadata must only change at its two root application version fields when bumping a release. Existing frontend dependency versions are unchanged. Instrument adapters add the pinned requirements-instrument.txt dependencies. Score protocol is 21; vocal projects remain schema 2 with schema 1 migration, while instrument projects use schema 3.
+Application version comes from `package.json`: frontend header/project persistence import it, the backend reads it in a source checkout, and Vite writes `dist/app-version.json` for portable runtime use. The portable packager also reads that version. Dependency lock metadata must only change at its two root application version fields when bumping a release. Existing frontend dependency versions are unchanged. Instrument adapters add the pinned requirements-instrument.txt dependencies. Score protocol is 22; vocal projects remain schema 2 with schema 1 migration, while instrument projects use schema 3.
 
 ## Repository and maintenance
 

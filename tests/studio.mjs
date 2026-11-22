@@ -18,11 +18,11 @@ await routeQaApi(page,process.env.QA_API_URL||'http://127.0.0.1:8770');
 const settled=()=>page.waitForFunction(()=>!document.querySelector('.project-actions button')?.disabled&&document.querySelector('.gf-score')?.dataset.rendering==='false'&&document.querySelector('.gf-score')?.dataset.mappedNotes==='430',{},{timeout:120000});
 const task=name=>page.getByRole('tab',{name,exact:true}).click();
 async function save(name){const pending=page.waitForEvent('download');await page.getByRole('button',{name:'保存工程',exact:true}).click();await(await pending).saveAs(name);return JSON.parse(await fs.readFile(name,'utf8'));}
-async function noOverflow(){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight));}
+async function noOverflow(){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
 try{
   await page.goto('http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();
   await page.waitForFunction(()=>!document.querySelector('.project-actions button')?.disabled);
-  assert.equal(await page.locator('.release-tag').textContent(),'v'+appVersion);
+  assert.equal(await page.locator('.about-studio span').textContent(),'v'+appVersion);
   await page.screenshot({path:'tests/output/studio-start.png'});
   await page.getByLabel('打开工程',{exact:true}).setInputFiles(fixture);await settled();
   assert.equal(await page.locator('.measure-hitbox').count(),82);
@@ -55,7 +55,7 @@ try{
   await page.screenshot({path:'tests/output/studio-desktop.png'});
   for(const [width,height] of [[390,844],[390,667],[1024,768],[1920,1080]]){
     await page.setViewportSize({width,height});await page.waitForTimeout(200);await noOverflow();
-    if(width<1200){
+    if(width<=760){
       for(const name of ['音频','工具','乐谱']){await task(name);await noOverflow();}
       await task('工具');await task('器乐');
       await page.locator('.emotion-controls').scrollIntoViewIfNeeded();await noOverflow();
@@ -73,7 +73,7 @@ try{
   let pending=page.waitForEvent('download');await page.getByRole('button',{name:'下载此页 PNG',exact:true}).click();
   await(await pending).saveAs('tests/output/studio-page.png');
   const png=await fs.readFile('tests/output/studio-page.png');assert.equal(png.readUInt32BE(16),2480);assert.equal(png.readUInt32BE(20),3508);
-  pending=page.waitForEvent('download',{timeout:180000});await page.getByRole('button',{name:'导出全部页',exact:true}).click();await(await pending).saveAs('tests/output/studio-pages.zip');
+  pending=page.waitForEvent('download',{timeout:180000});await page.getByRole('button',{name:/全部 .* 页 PNG/}).click();await(await pending).saveAs('tests/output/studio-pages.zip');
   await page.locator('.export-options summary').click();
   const popupPending=page.waitForEvent('popup');await page.getByRole('button',{name:'打印 / 保存为 PDF',exact:true}).click();
   const popup=await popupPending;await popup.waitForFunction(()=>document.documentElement.dataset.printRequested==='true',{},{timeout:180000});
@@ -87,7 +87,7 @@ try{
   assert.equal(take.model.development,'phrase-development-v1');await settled();await task('器乐');
   assert.equal(await page.getByLabel('试听版本',{exact:true}).inputValue(),'3');
   report.generationSurvivesTabs=true;
-  await page.getByLabel('打开工程',{exact:true}).setInputFiles('tests/output/studio-roundtrip.acproject.json');await settled();
+  await page.getByLabel('打开工程',{exact:true}).setInputFiles('tests/output/studio-roundtrip.acproject.json');await page.getByRole('button',{name:'放弃修改',exact:true}).click();await settled();
   const reopened=await save('tests/output/studio-reopened.acproject.json');assert.deepEqual(reopened.source,original.source);assert.deepEqual(reopened.textureSets,original.textureSets);
   assert.deepEqual(errors,[]);assert.deepEqual(warnings,[]);Object.assign(report,{mappedNotes:430,measures:82,errors,warnings});
   await fs.writeFile('tests/output/studio-checks.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

@@ -1,189 +1,297 @@
-import { useEffect, useRef, useState } from 'react';
-import { api, clock } from './lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { api } from './lib/api';
 import type { SourceKind, Job, ScoreData, MusicSettings as Settings } from './lib/api';
 import { en, zh, translatedError } from './lib/i18n';
 import MelodyScore from './MelodyScore';
+import type { ScoreActions } from './MelodyScore';
 import type { OpenProject, Workspace } from './lib/project';
 import MusicSettings from './MusicSettings';
 import StudioHeader from './StudioHeader';
 import './App.css';
+
 const MAX_SIZE = 100 * 1024 * 1024;
-const stages = ['validating', 'converting', 'decoding', 'separating', 'melody', 'beats', 'engraving'];
-function Wave({ small = false }: { small?: boolean }) {
-  return <svg viewBox="0 0 48 48" width={small ? 30 : 48} height={small ? 30 : 48} fill="none" aria-hidden="true"><path d="M9 20v8m8-16v24m7-31v38m7-29v20m8-13v6" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" /></svg>;
-}
+const json = {'Content-Type':'application/json'};
+type ServiceState = 'checking' | 'ready' | 'offline' | 'incompatible';
+type Panel = 'source' | 'score' | 'tools';
+type Health = {scoreVersion:number; scoreReady?:boolean; ready:boolean; sourceReady?:Record<string,boolean>; missing?:string[]; desktop?:boolean};
+const kinds: SourceKind[]=['vocal','piano','guzheng'];
+
 export default function App() {
+  const [language,setLanguage]=useState<'en'|'zh'>(()=> {
+    try { const stored=localStorage.getItem('shengjian-language'); if(stored==='en'||stored==='zh')return stored; } catch { /* Preference storage is optional. */ }
+    return navigator.language.startsWith('zh')?'zh':'en';
+  });
+  const chinese=language==='zh',text=chinese?zh:en;
+  const tr=(a:string,b:string)=>chinese?a:b;
+  const names=chinese?['人声演唱','钢琴独奏','古筝独奏（试验）']:['Singing voice','Solo piano','Solo guzheng (experimental)'];
   const [sourceKind,setSourceKind]=useState<SourceKind>('vocal');
-  const [instrumentModels,setInstrumentModels]=useState<Record<string,boolean>>({});
-  const [sourceReady,setSourceReady]=useState<Record<string,boolean>>({});
-  const [language, setLanguage] = useState<'en' | 'zh'>('en');
-  const text = language === 'en' ? en : zh;
-  const [serviceReady, setServiceReady] = useState(false);
-  const [job, setJob] = useState<Job | null>(null);
-  const [selected, setSelected] = useState<{ name: string; size: number; format: string } | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [playbackError, setPlaybackError] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [directUrl, setDirectUrl] = useState<string | null>(null);
-  const [score, setScore] = useState<ScoreData | null>(null);
-  const [mobilePanel,setMobilePanel]=useState<'source'|'score'|'tools'>('source');
-  useEffect(()=>{if(score)setMobilePanel('score');},[score]);
+  const [health,setHealth]=useState<Health>();
+  const [service,setService]=useState<ServiceState>('checking');
+  const [job,setJob]=useState<Job|null>(null);
+  const [score,setScore]=useState<ScoreData|null>(null);
+  const [workspace,setWorkspace]=useState<Workspace>();
+  const [settings,setSettings]=useState<Settings|null>(null);
+  const [scoreAttempt,setScoreAttempt]=useState(0);
+  const [pending,setPending]=useState('');
+  const [dragging,setDragging]=useState(false);
+  const [importError,setImportError]=useState('');
+  const [taskError,setTaskError]=useState('');
+  const [scoreError,setScoreError]=useState('');
+  const [correcting,setCorrecting]=useState(false);
+  const [pollFailed,setPollFailed]=useState(false);
+  const [pollAttempt,setPollAttempt]=useState(0);
+  const [mediaUrl,setMediaUrl]=useState('');
+  const [originalTime,setOriginalTime]=useState(0);
+  const [originalPlaying,setOriginalPlaying]=useState(false);
+  const [dirty,setDirty]=useState(false);
+  const [notice,setNotice]=useState('');
+  const [versionLabel,setVersionLabel]=useState('');
+  const [panel,setPanel]=useState<Panel>('score');
   const [toolsHost,setToolsHost]=useState<HTMLDivElement|null>(null);
-  const [workspace,setWorkspace]=useState<Workspace|null>(null);
-  const projectInput=useRef<HTMLInputElement>(null),sourceInput=useRef<HTMLInputElement>(null);
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const separationMode = 'enhanced';
-  const vocalPreview = useRef<HTMLAudioElement>(null);
-  const [originalTime, setOriginalTime] = useState(0);
-  const [originalPlaying, setOriginalPlaying] = useState(false);
-  const audioElement = useRef<HTMLAudioElement>(null);
-  const [correcting, setCorrecting] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  const sequence = useRef(0);
-  const client = useRef(crypto.randomUUID());
-  const request = useRef<AbortController | null>(null);
-  const urlRef = useRef<string | null>(null);
-  useEffect(() => {
-    document.documentElement.lang = language === 'en' ? 'en' : 'zh-CN';
-    document.title = language === 'en' ? 'Shengjian · Audio to Score' : '声笺 · 旋律转谱与编配';
-  }, [language]);
-  useEffect(() => {
-    let active = true;
-    void (async () => {
+  const [guardError,setGuardError]=useState(false);
+  const [guard,setGuard]=useState<(()=>void)|null>(null);
+  const guardDialog=useRef<HTMLDialogElement>(null);
+  const scoreActions=useRef<ScoreActions>(null);
+  const scorePanel=useRef<HTMLElement>(null);
+  const media=useRef<HTMLAudioElement>(null);
+  const input=useRef<HTMLInputElement>(null),projectInput=useRef<HTMLInputElement>(null),linkInput=useRef<HTMLInputElement>(null);
+  const client=useRef(crypto.randomUUID()), sequence=useRef(0);
+  const healthRequest=useRef<AbortController|null>(null);
+  const request=useRef<AbortController|null>(null);
+  const busy=!!job&&!['ready','error'].includes(job.stage);
+  const serviceReady=service==='ready'&&(health?.scoreReady??health?.ready);
+  const canImport=!!serviceReady&&(health?.sourceReady?.[sourceKind]??(sourceKind==='vocal'&&health?.ready));
+  const checkService=useCallback(async()=>{
+    healthRequest.current?.abort();
+    const controller=new AbortController();
+    healthRequest.current=controller;
+    setService('checking');
+    try {
+      const result=await api<Health>('/api/health',{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(8000)])});
+      if(controller.signal.aborted)return;
+      setHealth(result);
+      setService(result.scoreVersion>=22?'ready':'incompatible');
+    } catch { if(!controller.signal.aborted)setService('offline'); }
+  },[]);
+  useEffect(()=>{
+    void checkService();
+    const close=(event:PageTransitionEvent)=>{
+      if(!event.persisted)navigator.sendBeacon('/api/reset',new Blob([JSON.stringify({client:client.current,sequence:++sequence.current})],{type:'application/json'}));
+    };
+    window.addEventListener('pagehide',close);
+    return ()=>{window.removeEventListener('pagehide',close);healthRequest.current?.abort();request.current?.abort();};
+  },[checkService]);
+  useEffect(()=>{
+    if(!dirty)return;
+    const confirm=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};
+    window.addEventListener('beforeunload',confirm);
+    return ()=>window.removeEventListener('beforeunload',confirm);
+  },[dirty]);
+  useEffect(()=>{
+    document.documentElement.lang=chinese?'zh-CN':'en';
+    document.title=chinese?'声笺 · 音频转谱':'Shengjian · Audio to Score';
+    try{localStorage.setItem('shengjian-language',language);}catch{/* Preference storage is optional. */}
+  },[language,chinese]);
+  useEffect(()=>{if(guard&&!guardDialog.current?.open)guardDialog.current?.showModal();},[guard]);
+  useEffect(()=>()=>{if(mediaUrl)URL.revokeObjectURL(mediaUrl);},[mediaUrl]);
+
+  useEffect(()=>{
+    if(!job?.id||!busy)return;
+    const controller=new AbortController();
+    let timer:ReturnType<typeof setTimeout>, failures=0;
+    const poll=async()=>{
       try {
-        await api('/api/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client: client.current, sequence: 0 }) });
-        const health = await api<{ ready: boolean; scoreReady?:boolean; sourceReady?:Record<string,boolean>; engine?: string; scoreVersion?:number;instrumentModels?:Record<string,boolean> }>('/api/health');
-        if(active){setInstrumentModels(health.instrumentModels||{});setSourceReady(health.sourceReady||{vocal:health.ready});}
-        if (active) { setServiceReady((health.scoreReady??health.ready) && health.engine === 'game' && Number(health.scoreVersion||0)>=21); if (health.engine !== 'game'||Number(health.scoreVersion||0)<21) setError('Restart the local service.'); }
-      } catch { if (active) setError('Unable to reach the local service.'); }
-    })();
-    const unload = () => navigator.sendBeacon('/api/reset', new Blob([JSON.stringify({ client: client.current, sequence: ++sequence.current, closing: true })], { type: 'application/json' }));
-    window.addEventListener('pagehide', unload);
-    return () => { active = false; window.removeEventListener('pagehide', unload); request.current?.abort(); if (urlRef.current) URL.revokeObjectURL(urlRef.current); };
-  }, []);
-  useEffect(() => {
-    if (!job?.id || job.stage === 'ready' || job.stage === 'error') return;
-    const id = job.id;
-    let active = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const updated = await api<Job>(`/api/jobs/${id}`);
-        if (!active) return;
-        setJob(updated);
-        if (updated.stage !== 'ready' && updated.stage !== 'error') timer = setTimeout(() => void poll(), 800);
-      } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : 'Unable to reach the local service.'); }
+        const next=await api<Job>(`/api/jobs/${job.id}`,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(8000)])});
+        if(controller.signal.aborted)return;
+        failures=0;setPollFailed(false);setJob(old=>old?.id===next.id?next:old);
+        if(!['ready','error'].includes(next.stage))timer=setTimeout(poll,800);
+      } catch {
+        if(controller.signal.aborted)return;
+        setPollFailed(true);
+        timer=setTimeout(poll,Math.min(12000,1000*2**Math.min(failures++,4)));
+      }
     };
     void poll();
-    return () => { active = false; clearTimeout(timer); };
-  }, [job?.id, job?.stage === 'ready', job?.stage === 'error']);
-  useEffect(() => {
-    if (!job?.analysisReady || !settings || (job.restored&&workspace)) return;
-    const controller = new AbortController();
-    setCorrecting(true); setScore(null);
-    const query = new URLSearchParams({ bpm: String(settings.bpm), meter: settings.meter, key: settings.key });
-    void api<ScoreData>(`/api/jobs/${job.id}/score?${query}`, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) { setScore(data); setError(null); }
-    }).catch(cause => { if (!controller.signal.aborted) setError(String(cause.message)); })
-      .finally(() => { if (!controller.signal.aborted) setCorrecting(false); });
-    return () => controller.abort();
-  }, [job?.id, job?.analysisReady, job?.separationMode, settings, workspace]);
-  const reset = async () => {
-    const current = ++sequence.current;
+    return ()=>{controller.abort();clearTimeout(timer);};
+  },[job?.id,busy,pollAttempt]);
+  useEffect(()=>{
+    if(!job?.analysisReady||!settings||score)return;
+    const controller=new AbortController();
+    const query=new URLSearchParams({bpm:String(settings.bpm),meter:settings.meter,key:settings.key});
+    setCorrecting(true);setScoreError('');
+    void api<ScoreData>(`/api/jobs/${job.id}/score?${query}`,{signal:controller.signal})
+      .then(next=>{if(!controller.signal.aborted){setScore(next);setPanel('score');}})
+      .catch(error=>{if(!controller.signal.aborted)setScoreError(error.message);})
+      .finally(()=>{if(!controller.signal.aborted)setCorrecting(false);});
+    return ()=>controller.abort();
+  },[job?.id,job?.analysisReady,settings,score,scoreAttempt]);
+
+  function protect(action:()=>void){
+    if(dirty){setGuardError(false);setGuard(()=>action);}else action();
+  }
+  function resolveGuard(action:'save'|'discard'|'stay'){
+    if(action==='save'&&!scoreActions.current?.save()){setGuardError(true);return;}
+    guardDialog.current?.close();setGuard(null);
+    if(action!=='stay')guard?.();
+  }
+  function begin(label:string){
     request.current?.abort();
-    clearLocal();
-    if (input.current) input.current.value = '';
-    try { await api('/api/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client: client.current, sequence: current }) }); }
-    catch (cause) { if (current === sequence.current) setError(cause instanceof Error ? cause.message : 'Unable to reach the local service.'); }
-    return current;
-  };
-  const clearLocal = () => {
-    for (const previousAudio of [audioElement.current, vocalPreview.current]) {
-      if (previousAudio) { previousAudio.pause(); previousAudio.removeAttribute('src'); previousAudio.load(); }
-    }
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    urlRef.current = null;
-    setDirectUrl(null); setJob(null); setScore(null); setSelected(null); setError(null); setPlaybackError(false); setUploading(false); setCorrecting(false); setOriginalPlaying(false); setOriginalTime(0);
-    setWorkspace(null);
-  };
-  const select = async (file?: File) => {
-    if (!file || !serviceReady || !sourceReady[sourceKind]) return;
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (!['mp3', 'flac'].includes(extension || '')) { setError('Only MP3 and FLAC files are supported.'); return; }
-    if (!file.size) { setError('The selected file is empty. Please choose another file.'); return; }
-    if (file.size > MAX_SIZE) { setError('File exceeds the size limit (maximum 100 MB).'); return; }
-    const current=++sequence.current;request.current?.abort();setError(null);setUploading(true);
-    const controller = new AbortController(); request.current = controller;
-    const body = new FormData(); body.append('file', file); body.append('separationMode', separationMode); body.append('sourceKind',sourceKind);
-    try {
-      const result = await api<{ id: string }>('/api/jobs', { method: 'POST', body, signal: controller.signal, headers: { 'X-Client-Session': client.current, 'X-Upload-Sequence': String(current) } });
-      if (current !== sequence.current) return;
-      const task = await api<Job>(`/api/jobs/${result.id}`, { signal: controller.signal });
-      if (current === sequence.current) {clearLocal();setSelected({name:file.name,size:file.size,format:extension!.toUpperCase()});if(extension==='mp3'){const url=URL.createObjectURL(file);urlRef.current=url;setDirectUrl(url);}setJob(task);}
-    } catch (cause) { if (current === sequence.current && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Unable to reach the local service.'); }
-    finally { if (current === sequence.current) setUploading(false); }
-  };
-  const openProject=async(file?:File)=>{
-    if(!file||!serviceReady)return;
-    if(file.size>32*1024*1024){setError(language==='zh'?'工程文件不能超过 32 MB。':'Project exceeds the size limit (32 MB).');return;}
-    const current=++sequence.current;request.current?.abort();const controller=new AbortController();request.current=controller;setUploading(true);setError(null);
+    const controller=new AbortController();
+    request.current=controller;
+    setPending(label);setImportError('');setTaskError('');
+    const id=++sequence.current;
+    return {signal:controller.signal,current:()=>id===sequence.current&&!controller.signal.aborted,headers:{'X-Client-Session':client.current,'X-Upload-Sequence':String(id),'X-Keep-Current-Job':'1'}};
+  }
+  function accept(next:Job,opened?:OpenProject,file?:File){
+    const previous=job?.id;
+    media.current?.pause();
+    setMediaUrl(file?.name.toLowerCase().endsWith('.mp3')?URL.createObjectURL(file):'');
+    setJob(next);setScore(opened?.score??null);setWorkspace(opened?.workspace);
+    setSettings(opened?{bpm:opened.score.bpm,meter:opened.score.meter,key:opened.score.key}:null);
+    setOriginalTime(0);setOriginalPlaying(false);setDirty(false);setNotice('');setVersionLabel('');
+    setPollFailed(false);setScoreError('');setCorrecting(false);setPanel('score');
+    if(opened)setSourceKind(opened.score.sourceKind||'vocal');
+    if(previous&&previous!==next.id)void api(`/api/jobs/${previous}`,{method:'DELETE',keepalive:true}).catch(()=>{});
+  }
+  function select(files:FileList|null){
+    const file=files?.[0];
+    if(!file||!canImport||pending)return;
+    if(!/\.(mp3|flac)$/i.test(file.name)){setImportError('Only MP3 and FLAC files are supported.');return;}
+    if(!file.size||file.size>MAX_SIZE){setImportError(file.size?'File exceeds the size limit (maximum 100 MB).':'The selected file is empty. Please choose another file.');return;}
+    const multiple=(files?.length||0)>1;
+    protect(()=>void (async()=>{
+      const op=begin(tr('正在导入录音…','Importing recording…'));
+      const form=new FormData();form.append('file',file);form.append('sourceKind',sourceKind);
+      try{
+        const next=await api<Job>('/api/jobs',{method:'POST',body:form,headers:op.headers,signal:op.signal});
+        if(op.current()){
+          accept(next,undefined,file);
+          if(multiple)setNotice(tr(`一次处理一个文件，已选择 ${file.name}。`,`One file at a time. Selected ${file.name}.`));
+        }else void api(`/api/jobs/${next.id}`,{method:'DELETE'}).catch(()=>{});
+      }catch(error){if(op.current())setImportError((error as Error).message);}
+      finally{if(op.current())setPending('');}
+    })());
+  }
+  async function openProject(file?:File){
+    if(!file||!serviceReady||pending)return;
+    let body:string;
     try{
-      const body=await file.text();JSON.parse(body);
-      const result=await api<OpenProject>('/api/projects/open',{method:'POST',body,signal:controller.signal,headers:{'Content-Type':'application/json','X-Client-Session':client.current,'X-Upload-Sequence':String(current)}});
-      if(current!==sequence.current)return;clearLocal();setJob(result.job);setSettings({bpm:result.score.bpm,meter:result.score.meter,key:result.score.key});setWorkspace(result.workspace);setScore(result.score);setSourceKind(result.score.sourceKind||'vocal');setSelected({name:result.job.name,size:0,format:'PROJECT'});
-    }catch(cause){if(current===sequence.current&&!controller.signal.aborted)setError(cause instanceof SyntaxError?(language==='zh'?'工程文件格式错误。':'Invalid project JSON.'):String((cause as Error).message));}
-    finally{if(current===sequence.current)setUploading(false);}
+      if(file.size>32*1024*1024)throw Error(tr('工程文件不能超过 32 MB。','Project exceeds 32 MB.'));
+      body=await file.text();JSON.parse(body);
+    }catch(error){setImportError(error instanceof SyntaxError?tr('工程文件格式错误。','Invalid project JSON.'):(error as Error).message);return;}
+    protect(()=>void (async()=>{
+      const op=begin(tr('正在打开工程…','Opening project…'));
+      try{
+        const opened=await api<OpenProject>('/api/projects/open',{method:'POST',body,headers:{...op.headers,...json},signal:op.signal});
+        if(op.current())accept(opened.job,opened);
+        else void api(`/api/jobs/${opened.job.id}`,{method:'DELETE'}).catch(()=>{});
+      }catch(error){if(op.current())setImportError((error as Error).message);}
+      finally{if(op.current())setPending('');}
+    })());
+  }
+  async function clear(){
+    if(!job)return;
+    const op=begin(tr('正在取消…','Cancelling…'));
+    try{await api(`/api/jobs/${job.id}`,{method:'DELETE',signal:op.signal});if(op.current()){setJob(null);setScore(null);setWorkspace(undefined);setSettings(null);setCorrecting(false);setScoreError('');setMediaUrl('');setDirty(false);setNotice('');setPollFailed(false);}}
+    catch{if(op.current())setTaskError(tr('无法确认取消，请重新检测连接后重试。','Cancellation could not be confirmed. Check the connection and retry.'));}
+    finally{if(op.current())setPending('');}
+  }
+  async function retry(){
+    if(!job||pending)return;
+    const op=begin(tr('正在重启分析…','Restarting analysis…'));
+    try{await api(`/api/jobs/${job.id}/retry`,{method:'POST',headers:json,body:'{"separationMode":"enhanced"}',signal:op.signal});if(op.current()){setPollFailed(false);setJob({...job,stage:'validating',progress:0,analysisReady:false,analysisError:undefined,error:undefined});}}
+    catch(error){if(op.current())setTaskError((error as Error).message);}
+    finally{if(op.current())setPending('');}
+  }
+  async function linkSource(file?:File){
+    if(!file||!job||pending)return;
+    const op=begin(tr('正在关联原录音…','Linking recording…'));
+    const form=new FormData();form.append('file',file);
+    try{const next=await api<Job>(`/api/jobs/${job.id}/source`,{method:'POST',body:form,signal:op.signal});if(op.current())setJob(next);}
+    catch(error){if(op.current())setTaskError(`${translatedError((error as Error).message,text)} ${tr('请选择原文件','Select the original file')} ${job.name}`);}
+    finally{if(op.current())setPending('');}
+  }
+  const applySettings=async(next:Settings)=>{
+    if(!score){
+      setSettings(next);setScoreAttempt(x=>x+1);return;
+    }
+    setScoreError('');setCorrecting(true);
+    try{await scoreActions.current?.reconfigure(next);}
+    catch(error){setScoreError((error as Error).message);}
+    finally{setCorrecting(false);}
   };
-  const linkSource=async(file?:File)=>{
-    if(!file||!job)return;const id=job.id;const current=sequence.current;
-    if(file.size>MAX_SIZE||!file.size){setError(language==='zh'?'请选择不超过 100 MB 的原音频。':'Choose the original audio (maximum 100 MB).');return;}
-    const body=new FormData();body.append('file',file);setUploading(true);setError(null);
-    try{const next=await api<Job>(`/api/jobs/${id}/source`,{method:'POST',body});if(current===sequence.current){setJob(next);setSelected({name:next.name,size:file.size,format:file.name.split('.').pop()!.toUpperCase()});}}
-    catch(cause){if(current===sequence.current)setError(String((cause as Error).message));}
-    finally{if(current===sequence.current)setUploading(false);}
+  const playerUrl=mediaUrl||(job?.playbackReady?`/api/jobs/${job.id}/audio`:'');
+  const vocalUrl=job?.vocalReady?`/api/jobs/${job.id}/vocals`:'';
+  const stage=job?.stage||'validating';
+  const indeterminate=stage==='instrumentLoading'||stage==='instrumentTranscription'&&job?.sourceKind==='piano';
+  const stageLabel=stage==='instrumentLoading'?tr('正在加载乐器模型','Loading instrument model'):stage==='instrumentTranscription'?tr('正在识别演奏','Transcribing performance'):text[stage as keyof typeof en]||text.status;
+  const status=service==='checking'?tr('正在检查本机服务','Checking local service'):service==='offline'?tr('本机服务连接失败','Local service unavailable'):service==='incompatible'?tr('本机服务版本不匹配','Incompatible local service'):tr('本机服务已连接','Local service connected');
+  const changePanel=(next:Panel,focus=false)=>{
+    setPanel(next);
+    if(focus)requestAnimationFrame(()=>document.getElementById(`${next}-panel`)?.focus({preventScroll:true}));
   };
-  const retry = async () => {
-    if (!job) return;
-    const current = sequence.current;
-    const preview = vocalPreview.current;
-    if (preview) { preview.pause(); preview.removeAttribute('src'); preview.load(); }
-    audioElement.current?.pause();
-    setScore(null);
-    try { await api(`/api/jobs/${job.id}/retry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ separationMode }) }); if (current === sequence.current) { setScore(null); setError(null); setJob({ ...job, stage: 'validating', progress: 0, analysisReady: false, analysisError: undefined, error: undefined }); } }
-    catch (cause) { if (current === sequence.current) setError(cause instanceof Error ? cause.message : 'Unable to reach the local service.'); }
-  };
-  const applySettings = (next: Settings) => { if(settings&&next.bpm===settings.bpm&&next.meter===settings.meter&&next.key===settings.key)return;setWorkspace(null); vocalPreview.current?.pause(); audioElement.current?.pause(); setScore(null); setSettings(next); };
-  const syncPlaying = () => setOriginalPlaying(Boolean((audioElement.current && !audioElement.current.paused) || (vocalPreview.current && !vocalPreview.current.paused)));
-  const stopBothAudio = () => { audioElement.current?.pause(); vocalPreview.current?.pause(); };
-  const playerUrl = job?.error ? null : directUrl || (job?.playbackReady ? `/api/jobs/${job.id}/audio` : null);
-  const message = error || job?.error || job?.analysisError || (playbackError ? 'Unable to play this audio file.' : null);
-  const stage = uploading ? 'localUpload' : job?.stage || 'validating';
-  const stageLabel = ({instrumentLoading:language==='zh'?'正在加载乐器模型':'Loading instrument model',instrumentTranscription:language==='zh'?'正在识别演奏音符':'Transcribing performance'} as Record<string,string>)[stage] || text[stage as keyof typeof en] || text.status;
-  const busy = uploading || !!job && !['ready', 'error'].includes(job.stage);
-  const canImport=serviceReady&&!!sourceReady[sourceKind];
-  const indeterminate=uploading||stage==='instrumentLoading'||(stage==='instrumentTranscription'&&job?.sourceKind==='piano');
-  return <div className="app-shell">
-    <StudioHeader language={language} onLanguage={setLanguage} ready={serviceReady} title={text.title} subtitle={text.subtitle} />
-    <main><div className="intro"><div><span className="eyebrow">{language==='zh'?(sourceKind==='vocal'?'从一段演唱，开始编配':'从一段演奏，写成乐谱'):(sourceKind==='vocal'?'FROM VOICE TO ARRANGEMENT':'FROM PERFORMANCE TO SCORE')}</span><h1>{text.intro}</h1><p>{text.description}</p></div><div className="intro-mark" aria-hidden="true"><span>♩</span><i /><i /><i /><i /><i /></div></div>
-      {score&&<nav className="workspace-tabs" aria-label={language==='zh'?'工作区':'Workspace'} role="tablist" onKeyDown={event=>{const panels=['source','score','tools'] as const,index=panels.indexOf(mobilePanel);let next=index;if(event.key==='ArrowRight')next=(index+1)%3;else if(event.key==='ArrowLeft')next=(index+2)%3;else if(event.key==='Home')next=0;else if(event.key==='End')next=2;else return;event.preventDefault();setMobilePanel(panels[next]);event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')[next]?.focus();}}>{(['source','score','tools'] as const).map((panel,i)=><button key={panel} id={`${panel}-tab`} role="tab" tabIndex={mobilePanel===panel?0:-1} aria-selected={mobilePanel===panel} aria-controls={`${panel}-panel`} onClick={()=>setMobilePanel(panel)}>{(language==='zh'?['音频','乐谱','工具']:['Audio','Score','Tools'])[i]}</button>)}</nav>}
-      <div className="studio-workspace" data-mobile-panel={mobilePanel}><aside id="source-panel" className="source-panel" aria-label={language==='zh'?'音频与乐谱参数':'Audio and musical settings'}>
-      <input ref={projectInput} className="file-input" type="file" accept=".acproject.json,.json,application/json" aria-label={language==='zh'?'打开工程':'Open project'} onChange={e=>{void openProject(e.target.files?.[0]);e.target.value='';}}/>
-      <input ref={sourceInput} className="file-input" type="file" accept=".mp3,.flac" aria-label={language==='zh'?'关联原音频':'Link original audio'} onChange={e=>{void linkSource(e.target.files?.[0]);e.target.value='';}}/>
-      <div className="source-heading"><span className="label">01 / SOURCE</span><h2>{language==='zh'?'音频与工程':'Audio & project'}</h2><p>{language==='zh'?'导入音频开始，或打开已保存的工程。':'Start with audio, or continue a saved project.'}</p></div><div className="project-actions"><button disabled={!serviceReady||uploading} onClick={()=>projectInput.current?.click()}>{language==='zh'?'打开工程':'Open project'}</button>{job?.restored&&<button disabled={uploading} onClick={()=>sourceInput.current?.click()}>{language==='zh'?'关联原音频':'Link original audio'}</button>}</div>
-      <input ref={input} type="file" accept=".mp3,.flac,audio/mpeg,audio/flac,audio/x-flac" className="file-input" aria-label={text.choose} onChange={event => {void select(event.target.files?.[0]);event.target.value='';}} />
-      <label className="recording-kind">{language==='zh'?'录音类型':'Recording type'}<select aria-label={language==='zh'?'录音类型':'Recording type'} value={sourceKind} disabled={busy} onChange={e=>setSourceKind(e.target.value as SourceKind)}><option value="vocal">{language==='zh'?'人声演唱':'Singing voice'}</option><option value="piano">{language==='zh'?'钢琴独奏':'Solo piano'}</option><option value="guzheng">{language==='zh'?'古筝独奏（试验）':'Solo guzheng (experimental)'}</option></select></label>
-      {sourceKind!=='vocal'&&instrumentModels[sourceKind]===false&&<p role="status" className="task-footnote">{language==='zh'?'所选乐器模型未准备好，请运行 SetupInstrument.cmd。':'This instrument model is not ready. Run SetupInstrument.cmd.'}</p>}
-      {serviceReady&&sourceReady[sourceKind]===false&&<p role="status" className="task-footnote">{language==='zh'?'此录音类型暂不可导入。准备好相应模型和音频工具后重启；已有工程仍可打开。':'This recording type is unavailable. Prepare its models and audio tools, then restart. Saved projects can still open.'}</p>}
-      <div className={`drop-zone ${dragging ? 'dragging' : ''} ${!canImport ? 'unavailable' : ''}`} role="button" tabIndex={canImport ? 0 : -1} aria-label={`${text.choose}. ${text.support}`} aria-disabled={!canImport} onClick={() => canImport && input.current?.click()} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (canImport) input.current?.click(); } }} onDragOver={event => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={event => { event.preventDefault(); setDragging(false); void select(event.dataTransfer.files[0]); }}>
-        <div className="upload-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
-        <h2>{text.upload}</h2><p>{text.dropHint}</p><span className="choose-button">{text.choose}<span aria-hidden="true">↗</span></span><small>{text.support}</small>
-      </div>
-      <MusicSettings value={settings} text={text} onApply={applySettings} busy={correcting} />
-      {selected && <section className="file-card card" aria-label={text.file}><span className="file-icon"><Wave small /></span><div className="file-title"><span className="label">{text.file}</span><h2 title={selected.name}>{selected.name}</h2></div><dl><div><dt>{text.format}</dt><dd>{selected.format==='PROJECT'?(language==='zh'?'工程':'Project'):job?.info?.format || selected.format}</dd></div><div><dt>{text.size}</dt><dd>{selected.size?`${(selected.size/1048576).toFixed(2)} MB`:'—'}</dd></div><div><dt>{text.duration}</dt><dd>{job?.info ? clock(job.info.duration) : '—'}</dd></div></dl></section>}
-      {(busy || message || job?.stage === 'ready') && <section className={`status-card ${message ? 'has-error' : ''}`} aria-live="polite" aria-atomic="true"><div className="status-row"><span className={`status-dot ${busy ? 'pulsing' : ''}`} /><strong>{message ? text.error : stageLabel}</strong>{busy && !indeterminate && <span>{Math.round((job?.progress || 0) * 100)}%</span>}</div>{busy && <progress max="1" value={indeterminate?undefined:job?.progress || 0} aria-label={stageLabel} />}{message && <p role="alert">{translatedError(message, text)}</p>}{message && <div className="error-actions">{error&&score&&<button onClick={()=>setError(null)}>{language==='zh'?'继续当前乐谱':'Keep current score'}</button>}{job?.analysisError && <button onClick={() => void retry()}>{text.retry}</button>}<button onClick={() => input.current?.click()}>{text.replace}</button></div>}{busy && <div className="stage-track" aria-hidden="true">{(sourceKind==='vocal'?stages:['validating','converting','decoding','instrumentLoading','instrumentTranscription']).map(s => <span key={s} className={s === stage ? 'current' : ''} />)}</div>}</section>}
-      <section className="player-card card"><div className="card-heading"><div><span className="label">01 / AUDIO</span><h2>{text.player}</h2></div><span className={`badge ${playerUrl ? 'success' : ''}`}>{playerUrl ? 'MP3' : '—'}</span></div>{playerUrl ? <><audio ref={audioElement} onTimeUpdate={event => setOriginalTime(event.currentTarget.currentTime)} onSeeked={event => setOriginalTime(event.currentTarget.currentTime)} onPlay={() => { setPlaybackError(false); vocalPreview.current?.pause(); syncPlaying(); }} onPause={syncPlaying} onEnded={syncPlaying} key={playerUrl} controls preload="metadata" src={playerUrl} aria-label={text.player} onError={event => { if (event.currentTarget === audioElement.current && event.currentTarget.getAttribute('src') && event.currentTarget.error?.code !== 1) setPlaybackError(true); }} /><div className="actions"><a className="primary-button" href={job?.playbackReady ? `/api/jobs/${job.id}/audio?download=1` : playerUrl} download={job?.downloadName || selected?.name}>{text.download}<span aria-hidden="true">↓</span></a><button onClick={() => input.current?.click()}>{text.replace}</button><button className="quiet-button" onClick={() => void reset()}>{text.clear}</button></div></> : <div className="player-placeholder"><Wave small /><div><strong>{text.waiting}</strong><p>{text.waitingHint}</p></div>{selected && <button onClick={() => void reset()}>{text.clear}</button>}</div>}</section>
-      </aside><section id="score-panel" className="score-card card" aria-label={text.score}><div className="card-heading"><div><span className="label">02 / SCORE</span><h2>{text.score}</h2></div><span className="score-heading-mark" aria-hidden="true">𝄞</span></div>{score ? <><MelodyScore onShowScore={()=>setMobilePanel('score')} toolsHost={toolsHost} initialWorkspace={workspace||undefined} key={`${job!.id}:${score.scoreFingerprint}`} jobId={job!.id} data={score} language={language} originalTime={originalTime} originalPlaying={originalPlaying} onStartScore={stopBothAudio} /></> : <div className="score-placeholder"><div className="staff-decoration" aria-hidden="true"><span>♪</span></div><strong>{job?.analysisReady && !settings ? text.settingsRequired : busy || correcting ? text.scoreWaiting : text.scoreIdle}</strong><p>{text.scoreSub}</p></div>}</section><aside id="tools-panel" className="tools-panel card" aria-label={language==='zh'?'乐谱工具':'Score tools'}><div className="card-heading"><div><span className="label">03 / TOOLS</span><h2>{language==='zh'?'编配工作台':'Arrangement studio'}</h2></div></div>{!score&&<p className="tools-placeholder">{language==='zh'?'乐谱就绪后，依次校正旋律、配置和弦、创作器乐段，再试听与导出。':'Once the score is ready, refine the melody, add chords, compose instrumentals, then listen and export.'}</p>}<div ref={setToolsHost} className="score-tools-host"/></aside></div>
-    </main><footer><span className="footer-dot" />{text.footer}</footer>
+  const audio=<section className="recording-player" aria-label={tr('原录音','Original recording')}>
+    {playerUrl?<><strong>{tr('原录音已关联','Original recording linked')}</strong><audio ref={media} controls preload="metadata" src={playerUrl} aria-label={text.player} onPlay={()=>setOriginalPlaying(true)} onPause={()=>setOriginalPlaying(false)} onEnded={()=>setOriginalPlaying(false)} onTimeUpdate={e=>setOriginalTime(e.currentTarget.currentTime)} onSeeked={e=>setOriginalTime(e.currentTarget.currentTime)} onError={()=>setTaskError(tr('原录音无法播放，请重试或重新关联。','Unable to play the recording. Retry or link it again.'))}/><a href={playerUrl+(mediaUrl?'':'?download=1')} download={job?.downloadName}>{text.download}</a></>:job?.restored?<><p>{tr('原录音未关联。你仍可编辑和试听谱面。','Original recording not linked. The score can still be edited and played.')}</p><button disabled={!!pending} onClick={()=>linkInput.current?.click()}>{tr('关联原音频','Link original audio')}</button></>:null}
+  </section>;
+  const parameters=job&&<><MusicSettings key={job.id} value={settings} text={text} onApply={next=>void applySettings(next)} busy={correcting||!!pending} /><div className="parameter-message">{score&&<p>{tr('改用新参数会创建分支并继承音符编辑。原分支保留首拍、和弦和器乐候选。','New parameters create a branch with your note edits. Downbeats, harmony and instrumentals stay on the previous branch.')}</p>}{!score&&busy&&settings&&<p role="status">{tr('分析完成后将按所填参数生成乐谱。','The score will use these settings when analysis finishes.')}</p>}{scoreError&&<p role="alert">{tr('未能生成新谱。可用相同参数重试。','Could not build the score. Retry with the same settings.')} {translatedError(scoreError,text)}</p>}</div></>;
+  const sourceControls=<div className="source-controls" onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);select(e.dataTransfer.files);}} data-dragging={dragging}>
+    <label className="recording-kind">{score?tr('下次导入类型','Next recording type'):tr('录音类型','Recording type')}<select aria-label={tr('录音类型','Recording type')} value={sourceKind} disabled={!!pending} onChange={e=>setSourceKind(e.target.value as SourceKind)}>{kinds.map((kind,index)=><option key={kind} value={kind}>{names[index]}</option>)}</select></label>
+    {service==='ready'&&!canImport&&<p role="status">{health?.missing?.some(item=>item==='ffmpeg'||item==='ffprobe')?tr('缺少音频工具。','Audio tools are missing.'):tr('所选类型的识别资源缺失。','Recognition resources for this type are missing.')} {health?.desktop?tr('请重新解压完整桌面包。','Extract the complete desktop bundle again.'):tr(sourceKind==='vocal'?'请运行 Setup.cmd。':'请运行 SetupInstrument.cmd。',sourceKind==='vocal'?'Run Setup.cmd.':'Run SetupInstrument.cmd.')} {tr('已有工程仍可打开。','Saved projects can still open.')}</p>}
+    <div className="source-actions project-actions"><button className="primary-button" disabled={!canImport||!!pending} onClick={()=>input.current?.click()}>{job?tr('替换录音','Replace recording'):text.choose}</button><button disabled={!serviceReady||!!pending} onClick={()=>projectInput.current?.click()}>{tr('打开工程','Open project')}</button>{job&&<button disabled={!!pending} onClick={()=>protect(()=>void clear())}>{busy?tr('取消分析','Cancel analysis'):text.clear}</button>}</div>
+    <small>{text.support}</small>
+  </div>;
+  const issues=<>{pending&&<p role="status">{pending}</p>}{importError&&<p role="alert">{translatedError(importError,text)}</p>}</>;
+  const transport=playerUrl||vocalUrl?{
+    originalAvailable:!!playerUrl,vocalAvailable:!!vocalUrl,
+    start:async(at:number,voice:boolean)=>{const element=media.current;if(!element)return;const url=voice?vocalUrl:playerUrl;if(element.getAttribute('src')!==url)element.src=url;element.currentTime=at;await element.play();},
+    seek:(at:number)=>{if(media.current)media.current.currentTime=at;setOriginalTime(at);},
+    pause:()=>media.current?.pause()
+  }:undefined;
+  return <div className="app-shell" data-scene={score?'workspace':job?'analysis':'idle'}>
+    <StudioHeader language={language} onLanguage={setLanguage} status={status} ready={service==='ready'} title={text.title} />
+    <input ref={input} className="file-input" type="file" accept=".mp3,.flac,audio/mpeg,audio/flac,audio/x-flac" aria-label={text.choose} onChange={e=>{select(e.target.files);e.target.value='';}} />
+    <input ref={projectInput} className="file-input" type="file" accept=".acproject.json,.json,application/json" aria-label={tr('打开工程','Open project')} onChange={e=>{void openProject(e.target.files?.[0]);e.target.value='';}} />
+    <input ref={linkInput} className="file-input" type="file" accept=".mp3,.flac" aria-label={tr('关联原音频','Link original audio')} onChange={e=>{void linkSource(e.target.files?.[0]);e.target.value='';}} />
+    <main>
+      {(service==='offline'||service==='incompatible'||service==='ready'&&!canImport)&&<div className="connection-note" role="status"><span>{status}{service==='incompatible'&&tr('。请退出旧版后重新打开声笺。','. Close the older service and reopen Shengjian.')}</span><button onClick={()=>void checkService()}>{tr('重新检测','Check again')}</button></div>}
+      {score&&job?<><div className="project-heading"><div><h1 title={job.name}>{job.name}</h1><p>{names[kinds.indexOf(job.sourceKind||'vocal')]} · {versionLabel} · {dirty?tr('有未保存修改','Unsaved changes'):tr('无待保存修改','No unsaved changes')}</p></div><button className="primary-button" onClick={()=>scoreActions.current?.save()}>{tr('保存工程','Save project')}</button></div>
+      {notice&&<p role="status" className="project-notice">{notice}</p>}
+      <nav className="workspace-tabs" aria-label={tr('工作区','Workspace')} role="tablist" onKeyDown={e=>{
+        const panels:Panel[]=['source','score','tools'];
+        const index=panels.indexOf(panel);
+        const next=e.key==='ArrowRight'?(index+1)%3:e.key==='ArrowLeft'?(index+2)%3:e.key==='Home'?0:e.key==='End'?2:-1;
+        if(next>=0){e.preventDefault();changePanel(panels[next]);document.getElementById(`${panels[next]}-tab`)?.focus();}
+      }}>{(['source','score','tools'] as const).map((name,index)=><button key={name} id={`${name}-tab`} role="tab" aria-selected={panel===name} tabIndex={panel===name?0:-1} aria-controls={`${name}-panel`} onClick={()=>changePanel(name)}>{(chinese?['音频','乐谱','工具']:['Audio','Score','Tools'])[index]}</button>)}</nav>
+      <div className="studio-workspace" data-mobile-panel={panel}>
+        <aside id="source-panel" className="source-panel" role="tabpanel" aria-labelledby="source-tab" tabIndex={-1}>
+          {audio}{taskError&&<p role="alert">{taskError}</p>}{issues}
+          <details className="source-options"><summary>{tr('乐谱参数','Score settings')}</summary>{parameters}</details>
+          <details className="source-options"><summary>{tr('打开或替换','Open or replace')}</summary>{sourceControls}</details>
+        </aside>
+        <section id="score-panel" className="score-card card" ref={scorePanel} role="tabpanel" aria-labelledby="score-tab" tabIndex={-1}>
+          <MelodyScore ref={scoreActions} key={job.id} jobId={job.id} data={score} language={language} initialWorkspace={workspace} toolsHost={toolsHost} onShowScore={()=>changePanel('score',true)} originalTime={originalTime} originalPlaying={originalPlaying} transport={transport} onStartScore={()=>media.current?.pause()} onDirty={setDirty} onSettings={setSettings} onVersionLabel={setVersionLabel} onSaved={setNotice}/>
+        </section>
+        <aside id="tools-panel" className="tools-panel card" role="tabpanel" aria-labelledby="tools-tab" tabIndex={-1}><div ref={setToolsHost}/></aside>
+      </div></>:<div className="start-screen">
+        <section className="start-card card"><h1>{job?.name||tr('从录音生成乐谱','Turn a recording into a score')}</h1>
+          {!job&&sourceControls}{issues}
+          {job&&<><div className="analysis-status">
+          <strong role="status">{pollFailed?tr('连接中断，进度暂不可用','Connection interrupted. Progress is unavailable.'):job.error||job.analysisError?text.error:correcting?text.rendering:job.analysisReady?tr('分析完成，请确认乐谱参数','Analysis complete. Confirm score settings.'):stageLabel}</strong>
+          {busy&&!pollFailed&&<progress max="1" value={indeterminate?undefined:job.progress} aria-label={stageLabel}/>}
+          {pollFailed&&<button onClick={()=>setPollAttempt(n=>n+1)}>{tr('重新连接','Reconnect')}</button>}
+          {(taskError||job.error||job.analysisError)&&<p role="alert">{translatedError(taskError||job.error||job.analysisError||'',text)}</p>}
+          {(job.error||job.analysisError)&&<button disabled={!!pending} onClick={()=>void retry()}>{text.retry}</button>}
+          <button disabled={!!pending} onClick={()=>void clear()}>{busy?tr('取消分析','Cancel analysis'):text.clear}</button></div>
+          {audio}{parameters}<details className="source-options"><summary>{tr('打开或替换','Open or replace')}</summary>{sourceControls}</details></>}
+          {!score&&notice&&<p role="status">{notice}</p>}
+        </section>
+      </div>}
+    </main>
+    <dialog aria-labelledby="discard-heading" ref={guardDialog} className="discard-dialog" onCancel={e=>{e.preventDefault();resolveGuard('stay');}}>
+      <h2 id="discard-heading">{tr('当前工程有未保存修改','The project has unsaved changes')}</h2>
+      <p>{tr('可以先下载工程文件，再继续当前操作。','Download the project before continuing if you want to keep your edits.')}</p>
+      {guardError&&<p role="alert">{tr('工程文件生成失败，请继续编辑后重试。','Project file generation failed. Keep editing and retry.')}</p>}
+      <div><button autoFocus onClick={()=>resolveGuard('stay')}>{tr('继续编辑','Keep editing')}</button><button onClick={()=>resolveGuard('discard')}>{tr('放弃修改','Discard changes')}</button><button className="primary-button" onClick={()=>resolveGuard('save')}>{tr('先保存','Save first')}</button></div>
+    </dialog>
   </div>;
 }

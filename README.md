@@ -1,4 +1,6 @@
-# 声笺 · Shengjian · v0.8.0-beta.1
+# 声笺 · Shengjian · v0.8.0-beta.2
+
+[Windows beta download and release notes](https://github.com/Xian-JL/Audio-Converter/releases/tag/v0.8.0-beta.2-desktop)
 
 This development beta adds solo piano (Transkun) and experimental solo guzheng (Basic Pitch ONNX). Select the recording type before importing MP3/FLAC. Polyphonic performance scores support individual chord-note edits, staff assignment, downbeat correction, schema-3 save/reopen, MIDI, MusicXML and image export. Create and review a separate melody candidate to enable harmony and EMO. Existing installations can prepare resources with `SetupInstrument.cmd`; full Setup includes it.
 

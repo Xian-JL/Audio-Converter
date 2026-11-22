@@ -6,6 +6,15 @@ from .basic_harmony import harmony_for_settings
 from .chord_score import engrave_block_chords
 
 PROJECT_LIMIT=32*1024*1024
+
+def saved_version_metadata(value,index):
+    kind=value.get('kind')
+    result={'kind':'original' if index==0 else kind if kind in ('edit','settings','melody','baseline') else 'rebar'}
+    if 'parent' in value:
+        parent=value['parent']
+        if type(parent)!=int or not 0<=parent<index:raise ValueError('Invalid parent score version.')
+        result['parent']=parent
+    return result
 INSTRUMENTS={'piano','guitar-nylon','cello','flute','harp','organ','violin','clarinet','bassoon','trumpet','trombone','xylophone'}
 TIMBRES={'natural','warm','bright','soft'}
 
@@ -108,14 +117,14 @@ def normalize_project(payload):
     versions=[]
     for i,v in enumerate(saved):
         if not isinstance(v,dict):raise ValueError('Invalid score version.')
-        score=score_for_request(original,{**params,'editedNotes':v.get('editedNotes'),'identityNotesJson':v.get('identityNotesJson'),'anchorNoteId':v.get('anchorNoteId'),'downbeats':v.get('downbeats')});score['sourceName']=name
+        score=score_for_request(original,{**params,**{k:v[k] for k in params if k in v},'editedNotes':v.get('editedNotes'),'identityNotesJson':v.get('identityNotesJson'),'anchorNoteId':v.get('anchorNoteId'),'downbeats':v.get('downbeats')});score['sourceName']=name
         if i==0 and score['scoreFingerprint']!=root['scoreFingerprint']:raise ValueError('The first version must preserve the original GF score.')
         h=v.get('harmony');harmony=None
         if h is not None:
             if not isinstance(h,dict):raise ValueError('Invalid harmony plan.')
             harmony=harmony_for_settings(score,h,default='legacy')
             if h.get('fingerprint')!=harmony['fingerprint']:raise ValueError('The saved harmony identity does not match.')
-        versions.append({'score':score,'harmony':harmony,'kind':'original' if i==0 else ('edit' if v.get('kind')=='edit' else 'rebar')})
+        versions.append({'score':score,'harmony':harmony,**saved_version_metadata(v,i)})
     textures={};sets=payload.get('textureSets',{})
     if not isinstance(sets,dict) or len(sets)>32:raise ValueError('Too many accompaniment sets.')
     valid={f"{i}:{v['harmony']['fingerprint']}":v for i,v in enumerate(versions) if v['harmony']}

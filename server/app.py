@@ -202,7 +202,7 @@ def health():
     emotion_models={name:emotion_available(name) for name in ('emo','midi-emotion')}
     from .instrument_runtime import available as instrument_available
     instruments = {k:instrument_available(k) for k in ('piano','guzheng')}
-    return jsonify(instrumentModels=instruments,sourceReady={'vocal':not missing,**{k:v and not common_missing for k,v in instruments.items()}},scoreReady=True,ready=not missing, missing=missing,engine='game',scoreVersion=21,appVersion=APP_VERSION,textureReady=any(emotion_models.values()),emotionModels=emotion_models)
+    return jsonify(instrumentModels=instruments,sourceReady={'vocal':not missing,**{k:v and not common_missing for k,v in instruments.items()}},desktop=not (ROOT / 'package.json').is_file(),scoreReady=True,ready=not missing, missing=missing,engine='game',scoreVersion=22,appVersion=APP_VERSION,textureReady=any(emotion_models.values()),emotionModels=emotion_models)
 
 @app.post('/api/jobs')
 def upload():
@@ -255,8 +255,10 @@ def upload():
         except OSError as error:
             cancel(job_id)
             return jsonify(error=str(error)),500
-        for old_id in previous:cancel(old_id)
-    return jsonify(id=job_id), 202
+        if request.headers.get('X-Keep-Current-Job') != '1':
+            for old_id in previous:cancel(old_id)
+        response=public_job(jobs[job_id])
+    return jsonify(response), 202
 
 @app.post('/api/reset')
 def reset():
@@ -310,7 +312,7 @@ def retry(job_id):
         if cache_result and cache_result.get('engine')=='game' and cache_result.get('engineSignature')==current_signature and (owned_dir(job_id) / f'vocals-{mode}.wav').is_file():
             shutil.copy2(cached, owned_dir(job_id) / 'analysis.json')
             result = json.loads(cached.read_text(encoding='utf-8'))
-            job.update(stage='ready', progress=1, analysisReady=True, engine='game',rhythmAvailable=bool(result.get('rhythm')), analysisSeconds=result['analysisSeconds'])
+            job.update(stage='ready', progress=1, analysisReady=True, engine='game',vocalReady=True,rhythmAvailable=bool(result.get('rhythm')), analysisSeconds=result['analysisSeconds'])
             job.update(summary={'noteCount':len(result['notes'])}, noVocal=not result['notes'], fromCache=True)
             job.pop('analysisError', None); job.pop('error', None)
             return '', 202
@@ -525,10 +527,35 @@ def open_project():
         directory=owned_dir(identifier);directory.mkdir(parents=True)
         (directory/'analysis.json').write_text(json.dumps(original,allow_nan=False),encoding='utf-8')
         job={'id':identifier,'client':client,'name':root['sourceName'],'sourceKind':original.get('sourceKind','vocal'),'size':0,'downloadName':Path(root['sourceName']).stem+'.mp3','stage':'ready','progress':1,'playbackReady':False,'analysisReady':True,'restored':True,'info':{'duration':root['duration'],'format':'PROJECT'}}
-        for old in list(jobs):
-            if jobs[old].get('client','')==client:cancel(old)
+        if request.headers.get('X-Keep-Current-Job') != '1':
+            for old in list(jobs):
+                if jobs[old].get('client','')==client:cancel(old)
         client_sequences[client]=sequence;jobs[identifier]=job
     return jsonify(job=job,score=root,workspace=workspace)
+
+
+@app.post('/api/jobs/<job_id>/reconfigure')
+def reconfigure(job_id):
+    from .editing import score_for_request
+    body=request.get_json(silent=True)
+    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:
+        return jsonify(error='Invalid score settings.'),400
+    with lock:
+        job=jobs.get(job_id)
+        if not job or not job.get('analysisReady'):
+            return jsonify(error='Score is not ready yet.'),404
+        source=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'))
+        name=job['name']
+    try:
+        previous=score_for_request(source,body['previous'])
+        if previous['scoreFingerprint']!=body.get('sourceFingerprint'):
+            raise ValueError('The score changed. Retry from the current version.')
+        settings={key:body.get(key) for key in ('bpm','meter','key')}
+        score=score_for_request(source,{**body['previous'],**settings,'downbeats':None,'anchorNoteId':None,'melodyConfirmed':False})
+        score['sourceName']=name
+        return jsonify(score=score,harmony=None,kind='settings')
+    except (ValueError,TypeError,KeyError,AttributeError) as error:
+        return jsonify(error=str(error)),400
 
 @app.post('/api/jobs/<job_id>/source')
 def link_source(job_id):

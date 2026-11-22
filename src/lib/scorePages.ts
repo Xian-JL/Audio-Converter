@@ -7,6 +7,8 @@ export async function pagePng(source:SVGSVGElement,title:string,subtitle:string,
   const svg=source.cloneNode(true) as SVGSVGElement;
   svg.querySelectorAll('.measure-hit-layer,.score-hitbox').forEach(n=>n.remove());
   svg.querySelectorAll('[tabindex]').forEach(n=>{n.removeAttribute('tabindex');n.removeAttribute('role');n.removeAttribute('aria-label');});
+  if(source.dataset.printViewBox)svg.setAttribute('viewBox',source.dataset.printViewBox);
+  svg.style.removeProperty('aspect-ratio');
   svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
   const width=parseFloat(svg.getAttribute('width')||'')||PAGE_WIDTH,height=parseFloat(svg.getAttribute('height')||'')||width*297/210;
   if(!svg.hasAttribute('viewBox'))svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('width',String(width));svg.setAttribute('height',String(height));

@@ -58,7 +58,7 @@ def run(directory, excerpt_start=None, excerpt_duration=None, mode='enhanced', s
                       sourceSha256=hashlib.sha256(original.read_bytes()).hexdigest(),rhythm=None,rhythmError=None)
         (directory / 'analysis.json').write_text(json.dumps(result, allow_nan=False), encoding='utf-8')
         (directory / f'analysis-{mode}.json').write_text(json.dumps(result, allow_nan=False), encoding='utf-8')
-        emit(stage='ready', progress=1, analysisReady=True, engine='game',rhythmAvailable=False,analysisSeconds=result['analysisSeconds'], summary={'noteCount':len(result['notes'])}, noVocal=not result['notes'])
+        emit(stage='ready', progress=1, analysisReady=True, engine='game',vocalReady=True,rhythmAvailable=False,analysisSeconds=result['analysisSeconds'], summary={'noteCount':len(result['notes'])}, noVocal=not result['notes'])
     except Exception as error:
         traceback.print_exc(file=sys.stderr)
         emit(stage='error', analysisError=str(error))

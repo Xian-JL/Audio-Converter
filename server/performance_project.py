@@ -4,7 +4,7 @@ from .performance_score import checked_notes, checked_controllers, generate
 
 
 def restore(payload):
-    from .project import number,index,ensembles_checked,INSTRUMENTS,restore_texture
+    from .project import number,index,ensembles_checked,restore_texture,saved_version_metadata
     from .basic_harmony import harmony_for_settings
     source=payload.get('source')
     if not isinstance(source,dict) or source.get('sourceKind') not in ('piano','guzheng'):raise ValueError('Invalid instrument project source.')
@@ -22,14 +22,14 @@ def restore(payload):
     versions=[]
     for i,v in enumerate(saved):
         if not isinstance(v,dict):raise ValueError('Invalid score version.')
-        score=generate(original,{**params,**{k:v.get(k) for k in ('editedNotes','downbeats','anchorNoteId')},'scoreMode':v.get('scoreMode','performance')});score['sourceName']=name;score['melodyConfirmed']=v.get('melodyConfirmed') is True
+        score=generate(original,{**params,**{k:v[k] for k in params if k in v},**{k:v.get(k) for k in ('editedNotes','downbeats','anchorNoteId')},'scoreMode':v.get('scoreMode','performance')});score['sourceName']=name;score['melodyConfirmed']=v.get('melodyConfirmed') is True
         if i==0 and score['scoreFingerprint']!=root['scoreFingerprint']:raise ValueError('The original performance must be retained.')
         harmony=None
         if v.get('harmony') is not None:
             if score['scoreMode']!='melody' or not score['melodyConfirmed']:raise ValueError('Accompaniment requires a melody branch.')
             harmony=harmony_for_settings(score,v['harmony'])
             if harmony['fingerprint']!=v['harmony'].get('fingerprint'):raise ValueError('Harmony identity does not match.')
-        versions.append({'score':score,'harmony':harmony,'kind':'original' if i==0 else ('edit' if v.get('kind')=='edit' else 'rebar')})
+        versions.append({'score':score,'harmony':harmony,**saved_version_metadata(v,i)})
     active=index(payload.get('activeVersion'),len(versions));ensembles=ensembles_checked(payload.get('ensembles'),['piano','piano'])
     layout=payload.get('scoreLayout','compact')
     if layout not in ('compact','standard'):raise ValueError('Invalid layout.')

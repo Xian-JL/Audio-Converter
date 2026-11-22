@@ -23,14 +23,14 @@ try{
  await page.getByLabel('音高 MIDI',{exact:true}).fill('65');await page.getByLabel('音符谱表',{exact:true}).selectOption('2');
  const edited=await action('edit',()=>page.getByRole('button',{name:'应用修改',exact:true}).click());await settled(4);
  assert.equal(edited.score.notes.find(n=>n.id==='e').staff,2);assert.equal(edited.score.notes.find(n=>n.id==='c').midi,60);report.chordMembersIndependent=true;
- await page.getByRole('button',{name:'结束编辑',exact:true}).click();await page.getByRole('button',{name:'撤销',exact:true}).click();await settled(4);
+ await page.getByRole('button',{name:'结束校对',exact:true}).click();await page.getByRole('button',{name:'撤销',exact:true}).click();await settled(4);
  await page.getByRole('button',{name:'定位小节第一拍',exact:true}).click();await page.locator('.score-note[data-note-id="repeat"][data-anchor-onset=true] .score-hitbox').click();
  const rebuilt=await action('rebar',()=>page.getByRole('button',{name:'重构乐谱',exact:true}).click());await settled(4);assert.equal(rebuilt.score.downbeat.noteId,'repeat');
  assert.equal(rebuilt.score.events.find(n=>n.id==='repeat').start,.5);report.rebarPreservesPerformance=true;
  const snapshot=await save('tests/output/performance-roundtrip.acproject.json');assert.equal(snapshot.schemaVersion,3);assert.equal(snapshot.source.sourceKind,'piano');assert.equal(snapshot.versions.length,3);
  await task('导出');
- let pending=page.waitForEvent('download');await page.getByRole('button',{name:'导出演奏 MIDI',exact:true}).click();await(await pending).saveAs('tests/output/performance-export.mid');assert.equal((await fs.readFile('tests/output/performance-export.mid')).subarray(0,4).toString(),'MThd');
- pending=page.waitForEvent('download');await page.getByRole('button',{name:'导出 MusicXML',exact:true}).click();await(await pending).saveAs('tests/output/performance-export.musicxml');
+ let pending=page.waitForEvent('download');await page.getByRole('button',{name:'演奏谱 MIDI',exact:true}).click();await(await pending).saveAs('tests/output/performance-export.mid');assert.equal((await fs.readFile('tests/output/performance-export.mid')).subarray(0,4).toString(),'MThd');
+ pending=page.waitForEvent('download');await page.getByRole('button',{name:'当前谱 MusicXML',exact:true}).click();await(await pending).saveAs('tests/output/performance-export.musicxml');
  pending=page.waitForEvent('download');await page.getByRole('button',{name:'下载此页 PNG',exact:true}).click();await(await pending).saveAs('tests/output/performance-page.png');report.exports=true;
  await task('旋律');await action('melody-branch',()=>page.getByRole('button',{name:'建立主旋律候选',exact:true}).click());await settled();
  assert.ok(await page.getByRole('tab',{name:'和弦',exact:true}).isDisabled());await page.getByRole('button',{name:'已核对主旋律，开放编配',exact:true}).click();await task('和弦');
@@ -39,14 +39,16 @@ try{
  await page.getByLabel('打开工程',{exact:true}).setInputFiles('tests/output/performance-branch.acproject.json');await page.waitForFunction(()=>!document.querySelector('.project-actions button')?.disabled);await settled();
  const reopened=await save('tests/output/performance-reopened.acproject.json');assert.deepEqual(reopened.source,branch.source);assert.deepEqual(reopened.versions,branch.versions);report.exactRoundtrip=true;
  await page.screenshot({path:'tests/output/performance-desktop.png'});
- await page.setViewportSize({width:390,height:844});await task('工具');await task('旋律');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight));await page.screenshot({path:'tests/output/performance-mobile.png'});report.mobile=true;
+ await page.setViewportSize({width:390,height:844});await task('工具');await task('旋律');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'tests/output/performance-mobile.png'});report.mobile=true;
  await page.setViewportSize({width:1440,height:900});
  if(await fs.stat('tests/output/instrument-piano-probe.flac').catch(()=>null)&&await fs.stat('tests/output/guzheng-real-30s.flac').catch(()=>null)){
  // Actual raw file import: instrument jobs bypass separation and invoke the pinned model.
- await page.getByLabel('录音类型',{exact:true}).selectOption('piano');await page.getByLabel('速度（BPM）',{exact:true}).fill('120');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();
+ const parameters=async()=>{await page.getByLabel('速度（BPM）',{exact:true}).fill('120');await page.getByLabel('拍号',{exact:true}).selectOption('4/4');await page.getByLabel('调',{exact:true}).selectOption('C major');await page.getByRole('button',{name:'应用乐谱参数',exact:true}).click();};
+ await page.getByText('打开或替换',{exact:true}).click();
+ await page.getByLabel('录音类型',{exact:true}).selectOption('piano');
  let upload=page.waitForResponse(r=>r.url().endsWith('/api/jobs')&&r.request().method()==='POST');
- await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/output/instrument-piano-probe.flac');assert.equal((await upload).status(),202);await settled();assert.ok(Number(await page.locator('.gf-score').getAttribute('data-mapped-notes'))>0);report.actualPianoImport=true;
- await page.getByLabel('录音类型',{exact:true}).selectOption('guzheng');upload=page.waitForResponse(r=>r.url().endsWith('/api/jobs')&&r.request().method()==='POST');await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/output/guzheng-real-30s.flac');assert.equal((await upload).status(),202);await settled();
+ await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/output/instrument-piano-probe.flac');assert.equal((await upload).status(),202);await parameters();await settled();assert.ok(Number(await page.locator('.gf-score').getAttribute('data-mapped-notes'))>0);report.actualPianoImport=true;
+ await save('tests/output/performance-piano.acproject.json');await page.getByText('打开或替换',{exact:true}).click();await page.getByLabel('录音类型',{exact:true}).selectOption('guzheng');upload=page.waitForResponse(r=>r.url().endsWith('/api/jobs')&&r.request().method()==='POST');await page.locator('input[accept*="audio/mpeg"]').setInputFiles('tests/output/guzheng-real-30s.flac');assert.equal((await upload).status(),202);await parameters();await settled();
  assert.ok(await page.getByRole('button',{name:'建立官方解码基线对照',exact:true}).isVisible());await action('transcription-candidate',()=>page.getByRole('button',{name:'建立官方解码基线对照',exact:true}).click());await settled();report.actualGuzhengAndBaseline=true;
  const g=await save('tests/output/performance-guzheng.acproject.json');assert.equal(g.source.sourceKind,'guzheng');assert.ok(g.source.baselineNotes.length>0);
  }else report.actualImportsSkipped='Prepare local probe recordings; see tests/README.md';

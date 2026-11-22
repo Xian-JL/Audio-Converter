@@ -1,5 +1,6 @@
 export type SourceKind = 'vocal'|'piano'|'guzheng';
 export interface Job {
+  vocalReady?:boolean;
   sourceKind?:SourceKind;
   restored?:boolean;
   id: string; name: string; size: number; downloadName: string; stage: string; progress: number;

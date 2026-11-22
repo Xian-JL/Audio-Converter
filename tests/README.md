@@ -43,3 +43,5 @@ For `performance.mjs`, stop other test servers and run `.venv\Scripts\python.exe
 Pinned resource setup is `setup-instrument.ps1` → `scripts/transcription_resources.py`. `scripts/instrument_resources.py` remains the existing licensed playback-sample preparer; do not overwrite it with the new transcription-model installer. Upstream source byte checks run without model weights in CI. Full `scripts/check_local.py` uses locally installed inference resources.
 
 Packaging supports `--reuse <existing-package>`: only identical hash-verified immutable model/tool/vendor/runtime/sample resources use hard links on the same filesystem. Mutable server/frontend code and user data stay independent. Replacing linked resources requires a fresh file plus rename; do not overwrite linked binaries in place. Package output must be a new directory.
+
+Run `node tests/workspace-flow.mjs` against the isolated QA UI on port 8765 to check parameter-rebuild failure and retry, version persistence, dirty-project guarding and editing in small viewports. The score viewport scrolls vertically in fit-width mode.

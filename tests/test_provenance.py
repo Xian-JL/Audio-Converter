@@ -13,6 +13,9 @@ class ProvenanceTests(unittest.TestCase):
             base = ROOT / 'vendor' / folder
             manifest = json.loads((base / 'SOURCE.json').read_text(encoding='utf-8'))
             for name, expected in manifest['files'].items():
+                # Model files are checked when preparing and packaging the resources.
+                if name.startswith('models/instrument-transcription/'):
+                    continue
                 with self.subTest(source=folder, file=name):
                     path = ROOT / name if isinstance(expected, dict) else base / name
                     self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected['sha256'] if isinstance(expected, dict) else expected)

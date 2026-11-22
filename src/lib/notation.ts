@@ -200,6 +200,7 @@ function melodyFragments(bars:Bar[], score:ScoreData):Fragment[] {
 /** Always derives from source XML. Unsupported structures keep their original engraving. */
 export function simplifyNotation(xml:string, score:ScoreData):Notation {
   const original:Notation={xml,fragments:score.fragments||[],version:NOTATION_VERSION,removedFragments:0,status:'unchanged'};
+  if(score.sourceKind&&score.sourceKind!=='vocal')return {...original,version:'performance-identity-v1'};
   try {
     const doc=new DOMParser().parseFromString(xml,'application/xml');
     if(doc.querySelector('parsererror')) throw Error('Invalid notation XML');

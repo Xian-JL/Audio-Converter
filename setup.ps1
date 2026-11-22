@@ -27,6 +27,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 & $projectPython -B -c "from server.emotion_runtime import verify; [verify(e) for e in ('emo','midi-emotion')]"
 if ($LASTEXITCODE) { throw 'Accompaniment resource setup failed.' }
+& (Join-Path $PSScriptRoot 'setup-instrument.ps1')
+if ($LASTEXITCODE) { throw 'Instrument setup failed.' }
 & $projectPython scripts\generate_test_fixtures.py
 if ($LASTEXITCODE) { throw 'Test fixture preparation failed.' }
 if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath 'dist\index.html') -and (Test-Path -LiteralPath 'dist\app-version.json') -and ((Get-Content -LiteralPath 'dist\app-version.json' -Raw | ConvertFrom-Json).version -eq (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version)) {

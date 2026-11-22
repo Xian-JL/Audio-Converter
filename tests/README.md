@@ -32,3 +32,14 @@ The two complete-project scenarios require private `exports/*.acproject.json` fi
 `sound.mjs` and `ensemble-sound.mjs` use Vite on port 5173 and local samples. `desktop_smoke.py` checks the explicit packaged app lifecycle; see desktop/README.md. `tests/output` is regenerable verification output, ignored by Git, and may be deleted after checks.
 
 Obsolete UI scenarios and one-off sample/preview authoring scripts have been deleted. Current coverage is consolidated in the maintained scripts above. Historical release notes may cite filenames from earlier releases. AMT/AccoMontage weights are not needed to restore saved candidates and are no longer installed locally; the optional full-AMT inference test requires explicitly preparing its resources again.
+
+
+## Instrument beta checks
+
+`test_performance.py` verifies polyphony, independent chord edits, simultaneous equal-pitch identities, original-time preservation, schema-3 reopening and tamper rejection, plus the reviewed-melody arrangement boundary. `instrument-quality.json` records the small guzheng pilot and its unmet formal gates; no audio/labels are distributed.
+
+For `performance.mjs`, stop other test servers and run `.venv\Scripts\python.exe -B tests/serve_ui.py 8765` alone. This serves the built UI and isolated temporary API on the same origin; do not start the normal app or a separate static server. Then run `node tests/performance.mjs` with `TEST_BROWSER_PATH` set as above. It opens the public synthetic `fixtures/performance-project.json`. Actual model-upload checks also run when both local files `tests/output/instrument-piano-probe.flac` and `tests/output/guzheng-real-30s.flac` exist; otherwise the report explicitly says these were skipped. Those recordings are local evidence, not a test dependency downloaded by this script. Browser file uploads must go directly to Flask: Playwright API forwarding can omit multipart file bytes.
+
+Pinned resource setup is `setup-instrument.ps1` → `scripts/transcription_resources.py`. `scripts/instrument_resources.py` remains the existing licensed playback-sample preparer; do not overwrite it with the new transcription-model installer. Upstream source byte checks run without model weights in CI. Full `scripts/check_local.py` uses locally installed inference resources.
+
+Packaging supports `--reuse <existing-package>`: only identical hash-verified immutable model/tool/vendor/runtime/sample resources use hard links on the same filesystem. Mutable server/frontend code and user data stay independent. Replacing linked resources requires a fresh file plus rename; do not overwrite linked binaries in place. Package output must be a new directory.

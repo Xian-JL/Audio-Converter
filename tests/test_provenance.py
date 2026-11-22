@@ -9,12 +9,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ProvenanceTests(unittest.TestCase):
     def test_pinned_source_and_vocabulary_bytes_survive_checkout(self):
-        for folder in ('anticipation', 'emo-disentanger', 'midi-emotion'):
+        for folder in ('anticipation', 'emo-disentanger', 'midi-emotion', 'transkun', 'basic-pitch'):
             base = ROOT / 'vendor' / folder
             manifest = json.loads((base / 'SOURCE.json').read_text(encoding='utf-8'))
             for name, expected in manifest['files'].items():
                 with self.subTest(source=folder, file=name):
-                    self.assertEqual(hashlib.sha256((base / name).read_bytes()).hexdigest(), expected)
+                    path = ROOT / name if isinstance(expected, dict) else base / name
+                    self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected['sha256'] if isinstance(expected, dict) else expected)
         manifest = json.loads((ROOT / 'models/emotion-models-manifest.json').read_text(encoding='utf-8'))
         for name, entry in manifest['files'].items():
             if name.startswith('server/data/'):

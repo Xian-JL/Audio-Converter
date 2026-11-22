@@ -18,9 +18,10 @@ export class SustainedSampler {
   private output:import('tone').Volume;
   private sources=new Set<AudioBufferSourceNode>();
   private bank:{midi:number;buffer:AudioBuffer}[];
+  private looped:boolean;
   private tone:Tone;private attack:number;private release:number;
-  constructor(tone:Tone,buffers:Record<string,AudioBuffer>,destination:import('tone').ToneAudioNode,attack:number,release:number,level:number){
-    this.tone=tone;this.attack=attack;this.release=release;
+  constructor(tone:Tone,buffers:Record<string,AudioBuffer>,destination:import('tone').ToneAudioNode,attack:number,release:number,level:number,looped=true){
+    this.looped=looped;this.tone=tone;this.attack=attack;this.release=release;
     this.output=new tone.Volume(level).connect(destination);this.volume=this.output.volume;
     this.bank=Object.entries(buffers).map(([note,buffer])=>({midi:tone.Frequency(note).toMidi(),buffer}));
   }
@@ -28,8 +29,8 @@ export class SustainedSampler {
     const context=this.tone.getContext().rawContext as AudioContext;
     for(const name of notes){
       const midi=69+12*Math.log2(this.tone.Frequency(name).toFrequency()/440),sample=this.bank.reduce((a,b)=>Math.abs(b.midi-midi)<Math.abs(a.midi-midi)?b:a);
-      const source=context.createBufferSource(),envelope=context.createGain();source.buffer=loopBuffer(sample.buffer,context);source.playbackRate.value=2**((midi-sample.midi)/12);
-      source.loop=true;source.loopStart=Math.floor(sample.buffer.length*.3)/sample.buffer.sampleRate;source.loopEnd=Math.floor(sample.buffer.length*.7)/sample.buffer.sampleRate;
+      const source=context.createBufferSource(),envelope=context.createGain();source.buffer=this.looped?loopBuffer(sample.buffer,context):sample.buffer;source.playbackRate.value=2**((midi-sample.midi)/12);
+      source.loop=this.looped;source.loopStart=Math.floor(sample.buffer.length*.3)/sample.buffer.sampleRate;source.loopEnd=Math.floor(sample.buffer.length*.7)/sample.buffer.sampleRate;
       const attack=Math.min(this.attack,length/2);envelope.gain.setValueAtTime(0,start);envelope.gain.linearRampToValueAtTime(velocity,start+attack);envelope.gain.setValueAtTime(velocity,start+length);envelope.gain.linearRampToValueAtTime(0,start+length+this.release);
       source.connect(envelope);this.tone.connect(envelope,this.output);this.sources.add(source);
       source.onended=()=>{this.sources.delete(source);source.disconnect();envelope.disconnect();};source.start(start);source.stop(start+length+this.release+.01);

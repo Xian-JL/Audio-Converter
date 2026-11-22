@@ -15,7 +15,7 @@ from .audio import probe, convert, decode
 def emit(**data):
     print(json.dumps(data, ensure_ascii=True, allow_nan=False), flush=True)
 
-def run(directory, excerpt_start=None, excerpt_duration=None, mode='enhanced'):
+def run(directory, excerpt_start=None, excerpt_duration=None, mode='enhanced', source_kind='vocal'):
     started = time.perf_counter()
     original = next(directory.glob('input.*'))
     emit(stage='validating', progress=0)
@@ -32,6 +32,14 @@ def run(directory, excerpt_start=None, excerpt_duration=None, mode='enhanced'):
         emit(stage='decoding', progress=0)
         decode(original, directory / 'source.wav', excerpt_start, excerpt_duration, verified_pcm=info.get('verifiedPCM', False))
         import soundfile as sf
+        if source_kind in ('piano','guzheng'):
+            from .instrument_runtime import transcribe
+            emit(stage='instrumentLoading',progress=0)
+            result=transcribe(directory/'source.wav',source_kind,lambda p:emit(stage='instrumentTranscription',progress=p))
+            result.update(sourceKind=source_kind,sourceSha256=hashlib.sha256(original.read_bytes()).hexdigest(),analysisSeconds=round(time.perf_counter()-started,2))
+            (directory/'analysis.json').write_text(json.dumps(result,allow_nan=False),encoding='utf-8')
+            emit(stage='ready',progress=1,analysisReady=True,engine=result['engine'],summary={'noteCount':len(result['notes'])})
+            return
         from .separation import separate
         from .game import GameTranscriber
         mixture, rate = sf.read(directory / 'source.wav', dtype='float32', always_2d=True)
@@ -61,9 +69,10 @@ def main():
     parser.add_argument('--start', type=float)
     parser.add_argument('--duration', type=float)
     parser.add_argument('--mode', choices=['enhanced', 'original'], default='enhanced')
+    parser.add_argument('--source-kind',choices=['vocal','piano','guzheng'],default='vocal')
     options = parser.parse_args()
     try:
-        run(options.directory.resolve(), options.start, options.duration, options.mode)
+        run(options.directory.resolve(), options.start, options.duration, options.mode, options.source_kind)
     except Exception as error:
         traceback.print_exc(file=sys.stderr)
         emit(stage='error', error=str(error))

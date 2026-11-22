@@ -1,5 +1,11 @@
 # 第三方资源
 
+## 钢琴与古筝转写（0.8 测试版）
+
+Transkun 2.0.1 官方 PyPI wheel 的代码及 2.0 权重来自 Yujia Yan，MIT 许可，保留 vendor/transkun/LICENSE、SOURCE.json。来源 https://github.com/Yujia-Yan/Transkun 。Basic Pitch 0.4.0 官方 wheel 中的 ONNX 权重和原始音符解码代码来自 Spotify，Apache-2.0 许可，保留 vendor/basic-pitch/LICENSE、NOTICE 与 SOURCE.json；来源 https://github.com/spotify/basic-pitch 。不安装 TensorFlow，不分发完整训练集。固定资源字节数和 SHA-256 见 models/instrument-models-manifest.json；适配位于 server/instrument_runtime.py，保留的上游源码未改写。古筝专项配置为本项目实验解码，并非上游官方古筝模型。
+
+Guzheng_Tech99 的少量片段仅用于本机对照测试，来自 ccmusic-database/Guzheng_Tech99；录音、标签和签名下载链接不提交、不随软件发行。tests/instrument-quality.json 只保留匿名行号和数值指标，不声称已经通过正式泛化验收。新增 Python 依赖与固定版本见 requirements-instrument.txt。
+
 ## 旋律与分离
 
 GAME 1.0.3 small ONNX 来自 https://github.com/openvpi/GAME ，驱动保持 GF 分块流程；许可证为 server/GAME-LICENSE.txt。模型仅从 models/game-small 读取，当前文件哈希与已复核整曲分析记录一致。

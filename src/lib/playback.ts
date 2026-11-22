@@ -61,7 +61,7 @@ export class ScorePlayback {
     if(this.playingLoop)this.until=this.playingLoop.end;
     this.limiter = new tone.Limiter(-1).toDestination();
     try{
-      selected.forEach((layers,staff)=>{this.players[staff]=createStaffPlayers(tone,layers,banks,staff,this.levels,this.limiter!);});
+      selected.forEach((layers,staff)=>{this.players[staff]=createStaffPlayers(tone,layers,banks,staff,this.levels,this.limiter!,!!this.data.sourceKind&&this.data.sourceKind!=='vocal');});
     }catch(error){this.pause();throw error;}
     this.anchor = tone.immediate() + .08;
     this.running = true;

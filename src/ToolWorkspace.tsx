@@ -9,26 +9,28 @@ const labels = {
 };
 
 /** Keep every panel mounted: changing tasks must not cancel a generation or lose a draft. */
-export default function ToolWorkspace({ language, active, onChange, panels }: {
+export default function ToolWorkspace({ language, active, onChange, panels, disabled=[] }: {
   language: 'en' | 'zh';
   active: ToolTab;
   onChange: (tab: ToolTab) => void;
   panels: Record<ToolTab, ReactNode>;
+  disabled?:ToolTab[];
 }) {
   const id = useId();
   return <div className="task-workspace">
     <div className="tool-tabs" role="tablist" aria-label={language === 'zh' ? '工作任务' : 'Workspace tasks'}
       onKeyDown={event => {
-        const index = tabs.indexOf(active);
-        const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
-          : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
-          : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
+        const enabled=tabs.filter(t=>!disabled.includes(t));
+        const index = enabled.indexOf(active);
+        const next = event.key === 'ArrowRight' ? (index + 1) % enabled.length
+          : event.key === 'ArrowLeft' ? (index + enabled.length - 1) % enabled.length
+          : event.key === 'Home' ? 0 : event.key === 'End' ? enabled.length - 1 : -1;
         if (next < 0) return;
         event.preventDefault();
-        onChange(tabs[next]);
-        event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')[next]?.focus();
+        onChange(enabled[next]);
+        event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')[tabs.indexOf(enabled[next])]?.focus();
       }}>
-      {tabs.map((tab, index) => <button key={tab} type="button" role="tab" id={`${id}-${tab}-tab`}
+      {tabs.map((tab, index) => <button key={tab} disabled={disabled.includes(tab)} type="button" role="tab" id={`${id}-${tab}-tab`}
         aria-controls={`${id}-${tab}-panel`} aria-selected={active === tab} tabIndex={active === tab ? 0 : -1}
         onClick={() => onChange(tab)}>{labels[language][index]}</button>)}
     </div>

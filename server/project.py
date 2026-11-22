@@ -74,6 +74,9 @@ def restore_texture(item,score,harmony):
     return {**{k:item.get(k) for k in ('sourceFingerprint','harmonyFingerprint','fingerprint','model','references','generationSeconds')},'settings':settings,'events':clean_events,'writtenChords':clean_written,'xml':xml,'chordFragments':fragments}
 
 def normalize_project(payload):
+    if isinstance(payload,dict) and payload.get('kind')=='audio-converter-project' and type(payload.get('schemaVersion'))==int and payload['schemaVersion']==3:
+        from .performance_project import restore
+        return restore(payload)
     if not isinstance(payload,dict) or payload.get('kind')!='audio-converter-project' or type(payload.get('schemaVersion'))!=int or payload['schemaVersion'] not in (1,2):raise ValueError('Unsupported project format.')
     source=payload.get('source')
     if not isinstance(source,dict):raise ValueError('Project source is missing.')

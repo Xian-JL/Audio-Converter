@@ -1,4 +1,8 @@
-# 声笺 · Shengjian · v0.7.2
+# 声笺 · Shengjian · v0.8.0-beta.1
+
+This development beta adds solo piano (Transkun) and experimental solo guzheng (Basic Pitch ONNX). Select the recording type before importing MP3/FLAC. Polyphonic performance scores support individual chord-note edits, staff assignment, downbeat correction, schema-3 save/reopen, MIDI, MusicXML and image export. Create and review a separate melody candidate to enable harmony and EMO. Existing installations can prepare resources with `SetupInstrument.cmd`; full Setup includes it.
+
+Formal transcription quality gates are still pending. Guzheng decoding offers an official-baseline comparison; preview uses a fixed-pitch plucked substitute. Piano key-note durations differ from acoustic decay; pedals are saved/exported to MIDI, not rendered in web preview. The public stable Release remains 0.7.2. The two model wheels total about 51.5 MB excluding additional dependencies. See [the design and remaining acceptance gates](DESIGN-0.8.0.md).
 
 [简体中文](README.zh-CN.md) · [Specification](SPEC.md) · [Third-party credits](THIRD_PARTY.md)
 

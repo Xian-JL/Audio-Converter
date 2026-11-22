@@ -33,6 +33,7 @@ export default function MelodyScore({data:originalData,language,onStartScore,ori
   const [versions,setVersions]=useState<ScoreVersion[]>(()=>initialWorkspace?.versions||[{score:originalData,harmony:null,kind:'original'}]);
   const [activeVersion,setActiveVersion]=useState(initialWorkspace?.activeVersion||0);
   const data=versions[activeVersion].score,harmony=versions[activeVersion].harmony;
+  useEffect(()=>{if(data.sourceKind&&data.sourceKind!=='vocal'&&(data.scoreMode==='performance'||!data.melodyConfirmed))setToolTab('melody');},[data.scoreFingerprint,data.melodyConfirmed]);
   const setHarmony=(next:Harmony)=>setVersions(previous=>previous.map((v,i)=>i===activeVersion&&v.score.scoreFingerprint===next.sourceFingerprint?{...v,harmony:next}:v));
   const [picking,setPicking]=useState(false),[candidateId,setCandidateId]=useState<string|null>(null),[rebarBusy,setRebarBusy]=useState(false),[anchorMessage,setAnchorMessage]=useState('');
   const anchorStorage='score-downbeat-v1:'+originalData.scoreFingerprint;
@@ -43,12 +44,12 @@ export default function MelodyScore({data:originalData,language,onStartScore,ori
   useEffect(()=>()=>rebuildRequest.current?.abort(),[]);
   const candidate=data.notes?.find(n=>n.id===candidateId);
   const [melodyEnabled,setMelodyEnabled]=useState(initialWorkspace?.voices[0]??true),[chordsEnabled,setChordsEnabled]=useState(initialWorkspace?.voices[1]??true);
-  const [ensembles,setEnsembles]=useState<Ensembles>(()=>initialWorkspace?.ensembles||legacyEnsembles(initialWorkspace?.instruments||['piano','piano']));
+  const [ensembles,setEnsembles]=useState<Ensembles>(()=>initialWorkspace?.ensembles||legacyEnsembles(initialWorkspace?.instruments||(originalData.sourceKind==='guzheng'?['guitar-nylon','guitar-nylon']:['piano','piano'])));
   const [scoreLayout,setScoreLayout]=useState<'compact'|'standard'>(initialWorkspace?.scoreLayout||'compact');
   const stage=useRef<HTMLDivElement>(null);
   const [currentPage,setCurrentPage]=useState(1),[pageCount,setPageCount]=useState(0),[exporting,setExporting]=useState(false),[exportProgress,setExportProgress]=useState(0);
   const exportCancelled=useRef(false);const [exportFirst,setExportFirst]=useState(1),[exportLast,setExportLast]=useState(1);
-  const [levels,setLevels]=useState<[number,number]>(initialWorkspace?.levels||[60,40]);
+  const [levels,setLevels]=useState<[number,number]>(initialWorkspace?.levels||(originalData.sourceKind?[70,70]:[60,40]));
   const pages=useRef<SVGSVGElement[]>([]),measurePages=useRef(new Map<number,number>()),pageShell=useRef<HTMLDivElement>(null);
   const [position,setPosition]=useState(initialWorkspace?.position||0),[playing,setPlaying]=useState(false),[loading,setLoading]=useState(false),[renderingState,setRendering]=useState(true),[renderedXml,setRenderedXml]=useState(''),[renderedLayout,setRenderedLayout]=useState(''),[error,setError]=useState('');
   const [mapped,setMapped]=useState(0);
@@ -95,25 +96,33 @@ export default function MelodyScore({data:originalData,language,onStartScore,ori
       measureElements.current.clear();measurePages.current.clear();const ids=new Set<string>();
       const svgs=[...renderHost.querySelectorAll<SVGSVGElement>('svg')];pages.current=svgs;
       svgs.forEach((svg,index)=>{const parent=svg.parentElement!;parent.classList.add('score-page');parent.dataset.page=String(index+1);parent.hidden=false;svg.dataset.page=String(index+1);if(!svg.hasAttribute('viewBox'))svg.setAttribute('viewBox',`0 0 ${parseFloat(svg.getAttribute('width')||'840')} ${parseFloat(svg.getAttribute('height')||'1188')}`);svg.setAttribute('role','img');svg.setAttribute('aria-label',`${songTitle(data.sourceName)} · Page ${index+1}`);});
+      const byInstrumentKey=new Map(notation.fragments.map(f=>[`${f.startTick}:${f.staff}:${f.voice}:${f.midi}`,f.noteId]));
       const byTick=new Map(notation.fragments.map(f=>[f.startTick,f.noteId]));
       const cursor=display.cursor;cursor.reset();cursor.SkipInvisibleNotes=false;let safe=0;
-      while(!cursor.Iterator.EndReached&&safe++<200000){
-        const number=cursor.Iterator.CurrentMeasureIndex+1;
-        for(const note of cursor.GNotesUnderCursor()){
-          const svgNote=note as typeof note & {getSVGGElement():SVGGElement;getNoteheadSVGs():HTMLElement[]};
-          const element=svgNote.getSVGGElement();if(!element||element.dataset.measure)continue;
+      const entries=[] as {number:number;notes:ReturnType<typeof cursor.GNotesUnderCursor>}[];
+      if(data.sourceKind&&data.sourceKind!=='vocal'){
+        display.GraphicSheet.MeasureList.forEach((staves,index)=>entries.push({number:index+1,notes:staves.flatMap(m=>m.staffEntries.flatMap(e=>e.graphicalVoiceEntries.flatMap(v=>v.notes)))}));
+      }else while(!cursor.Iterator.EndReached&&safe++<200000){entries.push({number:cursor.Iterator.CurrentMeasureIndex+1,notes:cursor.GNotesUnderCursor()});cursor.next();}
+      for(const {number,notes:graphicalNotes} of entries){
+        for(const note of graphicalNotes){
+          const svgNote=note as typeof note & {getSVGGElement():SVGGElement;getNoteheadSVGs():HTMLElement[];vfnote?:[unknown,number]};
+          let element=svgNote.getSVGGElement();
+          if(data.sourceKind&&data.sourceKind!=='vocal'&&!note.sourceNote.isRest()){
+            const heads=svgNote.getNoteheadSVGs();const head=heads.length===1?heads[0]:heads[svgNote.vfnote?.[1]||0];
+            if(head){if(head.parentElement?.classList.contains('instrument-note-head'))element=head.parentElement as unknown as SVGGElement;else{const wrapper=document.createElementNS('http://www.w3.org/2000/svg','g');wrapper.classList.add('instrument-note-head');head.parentNode?.insertBefore(wrapper,head);wrapper.append(head);element=wrapper;}}
+          }
+          if(!element||element.dataset.measure)continue;
           const voice=note.sourceNote.ParentVoiceEntry.ParentVoice.VoiceId;
           const staff=note.sourceNote.ParentStaff.Id===1?1:2;
           element.dataset.measure=String(number);element.dataset.page=element.closest('svg')?.dataset.page||'1';element.dataset.staff=String(staff);element.dataset.voice=String(voice);element.classList.add('score-note');element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label',`${text.from} ${data.measures[number-1]?.displayNumber??number}`);
-          if(staff===1&&voice===1&&!note.sourceNote.isRest()){
-            const tick=Math.round(note.sourceNote.getAbsoluteTimestamp().RealValue*4*(data.divisions||32));const id=byTick.get(tick);
+          if((data.sourceKind&&data.sourceKind!=='vocal'||staff===1&&voice===1)&&!note.sourceNote.isRest()){
+            const tick=Math.round(note.sourceNote.getAbsoluteTimestamp().RealValue*4*(data.divisions||32));const id=data.sourceKind&&data.sourceKind!=='vocal'?byInstrumentKey.get(`${tick}:${staff}:${voice}:${Math.round(69+12*Math.log2(note.sourceNote.Pitch.Frequency/440))}`):byTick.get(tick);
             if(id){element.dataset.noteId=id;ids.add(id);element.dataset.anchorOnset=String(data.notes?.find(n=>n.id===id)?.startTick===tick);}
           }
           try{const head=svgNote.getNoteheadSVGs()[0] as unknown as SVGGraphicsElement|undefined;const box=(head||element).getBBox();
             const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',String(box.x-5));rect.setAttribute('y',String(box.y-5));rect.setAttribute('width',String(Math.max(20,box.width+10)));rect.setAttribute('height',String(Math.max(20,box.height+10)));rect.classList.add('score-hitbox');element.insertBefore(rect,element.firstChild);
           }catch{/* Hidden rests need no additional pointer target. */}
         }
-        cursor.next();
       }
       cursor.reset();cursor.hide();setMapped(ids.size);
       if(ids.size!==data.noteCount)throw Error('Incomplete melody rendering');
@@ -185,7 +194,7 @@ export default function MelodyScore({data:originalData,language,onStartScore,ori
   const rebuild=async(points=draftPoints)=>{
     if(!validPoints(points))return;pause();onStartScore();rebuildRequest.current?.abort();const controller=new AbortController();rebuildRequest.current=controller;setRebarBusy(true);setAnchorMessage('');
     try{
-      const result=await api<{score:ScoreData;harmony:Harmony|null}>(`/api/jobs/${jobId}/rebar`,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({bpm:data.bpm,meter:data.meter,key:data.key,editedNotes:data.editedNotes,identityNotesJson:data.identityNotesJson,sourceFingerprint:data.baseFingerprint||data.scoreFingerprint,downbeats:points,includeHarmony:!!harmony})});
+      const result=await api<{score:ScoreData;harmony:Harmony|null}>(`/api/jobs/${jobId}/rebar`,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({scoreMode:data.scoreMode,melodyConfirmed:data.melodyConfirmed,bpm:data.bpm,meter:data.meter,key:data.key,editedNotes:data.editedNotes,identityNotesJson:data.identityNotesJson,sourceFingerprint:data.baseFingerprint||data.scoreFingerprint,downbeats:points,includeHarmony:!!harmony})});
       if(controller.signal.aborted)return;
       if(result.score.baseFingerprint!==(data.baseFingerprint||data.scoreFingerprint)||JSON.stringify(scorePoints(result.score))!==JSON.stringify(points))throw Error('Wrong score version');
       if(versions.length>=32)throw Error('Maximum 32 score versions');setVersions(previous=>[...previous,{...result,kind:'rebar'}]);setActiveVersion(versions.length);setPosition(result.score.downbeat?.time||0);setPicking(false);setEditing(false);setCandidateId(null);setSavedPoints(points);onShowScore();
@@ -221,10 +230,18 @@ export default function MelodyScore({data:originalData,language,onStartScore,ori
     const at=playing?(player.current?.position()??position):position,resume=playing;pause();setPosition(at);
     const next:Ensembles=staff===0?[layers,ensembles[1]]:[ensembles[0],layers];setEnsembles(next);player.current?.setEnsembles(next);if(resume)void play(at);
   };
+  const exportMidi=async()=>{
+    pause();try{const response=await fetch(`/api/jobs/${jobId}/midi`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bpm:data.bpm,meter:data.meter,key:data.key,scoreMode:data.scoreMode,editedNotes:data.editedNotes,downbeats:data.downbeats?.map(({noteId,measure})=>({noteId,measure})),sourceFingerprint:data.scoreFingerprint})});if(!response.ok)throw Error((await response.json()).error);saveBlob(await response.blob(),songTitle(data.sourceName)+'.mid');}catch(cause){setError(String((cause as Error).message));}
+  };
+  const createMelodyBranch=async(baseline=false)=>{
+    pause();onStartScore();setRebarBusy(true);
+    try{const next=await api<ScoreVersion>(`/api/jobs/${jobId}/${baseline?'transcription-candidate':'melody-branch'}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bpm:data.bpm,meter:data.meter,key:data.key,scoreMode:data.scoreMode,editedNotes:data.editedNotes,downbeats:data.downbeats?.map(({noteId,measure})=>({noteId,measure})),sourceFingerprint:data.scoreFingerprint})});revision(next,null);}
+    catch(cause){setError(String((cause as Error).message));}finally{setRebarBusy(false);}
+  };
   const controls=<div className="score-tools" data-picking={picking} data-editing={editing}>
-    <div className="project-bar"><span>{language==='zh'?'当前工程':'Current project'}<small>{data.noteCount} {language==='zh'?'个旋律音':'melody notes'} · {data.bpm} BPM · {data.meter}</small></span><button className="primary-button" disabled={rebarBusy||textureBusy} onClick={saveProject}>{language==='zh'?'保存工程':'Save project'}</button></div>
-    <ToolWorkspace language={language} active={toolTab} onChange={setToolTab} panels={{
-      melody:<><div className="task-intro"><h3>{language==='zh'?'校正旋律与节拍':'Refine melody & timing'}</h3><p>{language==='zh'?'先定位第一拍，再按需修订旋律。原始版本始终保留。':'Locate the downbeat, then edit notes as needed. The original version is retained.'}</p></div>    <div className="workspace-actions"><span className="score-note-count">{data.noteCount} {language==='zh'?'个旋律音符':'melody notes'}</span><button aria-pressed={editing} disabled={rendering||rebarBusy||textureBusy} onClick={()=>{pause();onStartScore();setPicking(false);if(!editing)onShowScore();setEditing(!editing);setEditId(data.notes?.find(n=>n.start>=position)?.id||data.notes?.[0]?.id||null);}}>{language==='zh'?(editing?'结束编辑':'编辑旋律'):(editing?'Finish editing':'Edit melody')}</button><button disabled={activeVersion===0||rebarBusy||textureBusy} onClick={()=>switchVersion(activeVersion-1)}>{language==='zh'?'撤销':'Undo'}</button><button disabled={activeVersion>=versions.length-1||rebarBusy||textureBusy} onClick={()=>switchVersion(activeVersion+1)}>{language==='zh'?'重做':'Redo'}</button></div>
+    <div className="project-bar"><span>{language==='zh'?'当前工程':'Current project'}<small>{data.noteCount} {language==='zh'?(data.sourceKind?'个演奏音':'个旋律音'):(data.sourceKind?'performance notes':'melody notes')} · {data.bpm} BPM · {data.meter}</small></span><button className="primary-button" disabled={rebarBusy||textureBusy} onClick={saveProject}>{language==='zh'?'保存工程':'Save project'}</button></div>
+    <ToolWorkspace language={language} active={toolTab} onChange={setToolTab} disabled={data.sourceKind&&data.sourceKind!=='vocal'&&(data.scoreMode==='performance'||!data.melodyConfirmed)?['harmony','instrumental']:[]} panels={{
+      melody:<>{data.sourceKind&&data.sourceKind!=='vocal'&&<section className="instrument-branch"><h3>{language==='zh'?(data.sourceKind==='piano'?'钢琴':'古筝')+' · '+(data.scoreMode==='performance'?'演奏转写谱':'主旋律候选'):(data.sourceKind==='piano'?'Piano':'Guzheng')+' · '+(data.scoreMode==='performance'?'Performance score':'Melody candidate')}</h3>{data.sourceKind==='guzheng'&&<p>{language==='zh'?'古筝为试验功能，请对照原音核对。预听使用固定音高拨弦音色，不还原滑音、揉弦；轨迹保留在工程中。':'Experimental guzheng: review against the recording. Preview and MIDI use fixed pitches; bend trajectories remain in the project.'}</p>}{data.scoreMode==='performance'&&data.sourceBaselineNotes&&<button disabled={rendering||rebarBusy} onClick={()=>void createMelodyBranch(true)}>{language==='zh'?'建立官方解码基线对照':'Compare official baseline decoder'}</button>}{data.scoreMode==='performance'?<button disabled={rendering||rebarBusy} onClick={()=>void createMelodyBranch()}>{language==='zh'?'建立主旋律候选':'Create melody candidate'}</button>:!data.melodyConfirmed&&<button onClick={()=>setVersions(previous=>previous.map((v,i)=>i===activeVersion?{...v,score:{...v.score,melodyConfirmed:true}}:v))}>{language==='zh'?'已核对主旋律，开放编配':'Confirm melody and enable arrangement'}</button>}</section>}{data.sourceKind==='piano'&&<p className="task-footnote">{language==='zh'?'钢琴识别记录键音时值；踏板事件保存于工程并导出至 MIDI，网页试听暂不渲染踏板。':'Piano uses key-note durations. Pedals are saved and exported to MIDI; web preview does not render them.'}</p>}<div className="task-intro"><h3>{language==='zh'?'校正旋律与节拍':'Refine melody & timing'}</h3><p>{language==='zh'?'先定位第一拍，再按需修订旋律。原始版本始终保留。':'Locate the downbeat, then edit notes as needed. The original version is retained.'}</p></div>    <div className="workspace-actions"><span className="score-note-count">{data.noteCount} {language==='zh'?(data.sourceKind?'个演奏音符':'个旋律音符'):(data.sourceKind?'performance notes':'melody notes')}</span><button aria-pressed={editing} disabled={rendering||rebarBusy||textureBusy} onClick={()=>{pause();onStartScore();setPicking(false);if(!editing)onShowScore();setEditing(!editing);setEditId(data.notes?.find(n=>n.start>=position)?.id||data.notes?.[0]?.id||null);}}>{language==='zh'?(editing?'结束编辑':data.sourceKind?'编辑音符':'编辑旋律'):(editing?'Finish editing':data.sourceKind?'Edit notes':'Edit melody')}</button><button disabled={activeVersion===0||rebarBusy||textureBusy} onClick={()=>switchVersion(activeVersion-1)}>{language==='zh'?'撤销':'Undo'}</button><button disabled={activeVersion>=versions.length-1||rebarBusy||textureBusy} onClick={()=>switchVersion(activeVersion+1)}>{language==='zh'?'重做':'Redo'}</button></div>
     {editing&&<MelodyEditor key={activeVersion} score={data} jobId={jobId} language={language} selectedId={editId} onRevision={revision} onBeforeChange={()=>{pause();onStartScore();}} busy={rendering||rebarBusy||textureBusy||versions.length>=32} onPreview={(start,end)=>void play(start,end,true)}/>}
     <section className={`downbeat-tools ${picking?'selecting':''}`} aria-label={text.anchor}>
       <div className="gf-review-row"><button aria-pressed={picking} disabled={rendering||rebarBusy||textureBusy} onClick={()=>{pause();onStartScore();setEditing(false);if(!picking){setDraftPoints(scorePoints(data));onShowScore();}setPicking(!picking);setCandidateId(null);setAnchorMessage('');}}>{text.anchor}</button>{validPoints(savedPoints)&&<button disabled={rebarBusy||rendering||textureBusy} onClick={()=>void rebuild(savedPoints)}>{text.restore}</button>}
@@ -257,7 +274,8 @@ export default function MelodyScore({data:originalData,language,onStartScore,ori
     </section>
     <p className="sound-credits"><a href="/piano/LICENSE.txt" target="_blank" rel="noreferrer">Salamander Yamaha C5</a> · <a href="/instruments/LICENSE.md" target="_blank" rel="noreferrer">Tone.js instruments · CC BY 3.0</a></p>
 </>,
-      export:<>    <section className="tools-export" aria-label={language==='zh'?'乐谱导出':'Score export'}><h3>{language==='zh'?'乐谱导出':'Score export'}</h3>
+      export:<>    {data.sourceKind&&<div className="page-export"><button onClick={()=>void exportMidi()}>{language==='zh'?'导出演奏 MIDI':'Export performance MIDI'}</button><button onClick={()=>saveBlob(new Blob([sourceXml],{type:'application/vnd.recordare.musicxml+xml'}),songTitle(data.sourceName)+'.musicxml')}>{language==='zh'?'导出 MusicXML':'Export MusicXML'}</button></div>}
+    <section className="tools-export" aria-label={language==='zh'?'乐谱导出':'Score export'}><h3>{language==='zh'?'乐谱导出':'Score export'}</h3>
 <div className="page-export"><button disabled={rendering||exporting||textureBusy||!pageCount} onClick={()=>void download(false)}>{language==='zh'?'下载此页 PNG':'Download page PNG'}</button><button className="primary-button" disabled={rendering||exporting||textureBusy||!pageCount} onClick={()=>void download(true)}>{exporting?`${language==='zh'?'正在导出':'Exporting'} ${Math.round(exportProgress*100)}%`:(language==='zh'?'导出全部页':'Export all pages')}</button></div>
     <details className="export-options"><summary>{language==='zh'?'打印与导出选项':'Print & export options'}</summary><div className="export-range"><label>{language==='zh'?'从页':'From page'}<input type="number" min="1" max={pageCount} value={Math.min(exportFirst,pageCount||1)} onChange={e=>{const first=Math.max(1,Math.min(pageCount,Number(e.target.value)||1));setExportFirst(first);setExportLast(last=>Math.max(first,last));}}/></label><label>{language==='zh'?'到页':'To page'}<input type="number" min={exportFirst} max={pageCount} value={Math.min(exportLast,pageCount||1)} onChange={e=>setExportLast(Math.max(exportFirst,Math.min(pageCount,Number(e.target.value)||1)))}/></label><button disabled={rendering||exporting||!pageCount||exportLast<exportFirst} onClick={()=>void download(false,true)}>{language==='zh'?'导出页码范围':'Export page range'}</button><button disabled={rendering||exporting||!pageCount} onClick={()=>{pause();void download(true,false,true);}}>{language==='zh'?'打印 / 保存为 PDF':'Print / Save as PDF'}</button></div></details>
     {exporting&&<div className="export-progress" role="status"><progress max="1" value={exportProgress}/><button onClick={()=>{exportCancelled.current=true;}}>{language==='zh'?'取消导出':'Cancel export'}</button></div>}

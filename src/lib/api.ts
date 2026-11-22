@@ -1,4 +1,6 @@
+export type SourceKind = 'vocal'|'piano'|'guzheng';
 export interface Job {
+  sourceKind?:SourceKind;
   restored?:boolean;
   id: string; name: string; size: number; downloadName: string; stage: string; progress: number;
   playbackReady: boolean; analysisReady: boolean; error?: string; analysisError?: string;
@@ -8,6 +10,8 @@ export interface Job {
   info?: { duration: number; sampleRate: number; channels: number; format: string; ignoredTrailingData?: boolean };
 }
 export interface ScoreData {
+  sourceKind?:SourceKind; scoreMode?:'performance'|'melody'; sourceNotes?:NoteInput[]; sourceBaselineNotes?:NoteInput[];sourceControllers?:{controller:number;start:number;end:number;value:number}[]; melodyConfirmed?:boolean;
+  reviewSummary?:{suspectNotes:number};
   downbeats?:{noteId:string;measure:number;time:number;measureNumber:number}[];
   identityNotesJson?:string;
   editedNotes?:NoteInput[]; revisionKind?:'edit';
@@ -16,8 +20,8 @@ export interface ScoreData {
   grid?:{phaseSeconds:number;pickupTicks:number;anchors?:[number,number][]};
   melodyOnly?: boolean; engine?: string; sourceName?: string; sourceSha256?: string; scoreFingerprint?: string;
   engineSignature?: { version: string; files: Record<string,string> };
-  notes?: { id: string; index: number; midi: number; midiFloat: number; start: number; end: number; notatedStart: number; notatedEnd: number; startTick: number; endTick: number }[];
-  fragments?: { noteId: string; startTick: number; endTick: number; midi: number }[];
+  notes?: { id: string; index: number; midi: number; midiFloat: number; start: number; end: number; notatedStart: number; notatedEnd: number; startTick: number; endTick: number;staff?:number;voice?:number;velocity?:number;confidence?:number;pitchBends?:number[][] }[];
+  fragments?: { noteId: string; startTick: number; endTick: number; midi: number;staff?:number;voice?:number }[];
   divisions?: number; maxNotationShiftMs?: number;
   notatedEvents?: ScoreData['events'];
   xml: string; bpm: number; meter: string; key: string; duration: number;
@@ -32,7 +36,7 @@ export interface ScoreData {
   measures: { number: number; displayNumber?:number; pickup?:boolean; startTick?:number; endTick?:number; start: number; end: number; label: string; hasVocal: boolean }[];
   events: { id?: string; start: number; end: number; pitches: number[]; staff: number; velocity?: number; voice?:number;role?:'block'|'instrumental' }[];
 }
-export interface NoteInput {id:string;start:number;end:number;midi:number;midiFloat:number}
+export interface NoteInput {id:string;start:number;end:number;midi:number;midiFloat:number;staff?:number;velocity?:number;confidence?:number;pitchBends?:number[][]}
 export interface MusicSettings { bpm: number; meter: string; key: string }
 export interface EmotionSettings {engine:'emo'|'midi-emotion';feeling:'sad'|'calm'|'tense'|'bright';contour:'rising'|'steady'|'falling'}
 export interface AccompanimentData {

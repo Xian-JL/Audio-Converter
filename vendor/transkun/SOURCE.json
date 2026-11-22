@@ -1,0 +1,96 @@
+{
+  "package": "transkun",
+  "version": "2.0.1",
+  "wheelUrl": "https://files.pythonhosted.org/packages/a2/1f/1e04ac0f04583d593ecca935270401404ad45e88c9db7b249b67bde20a1b/transkun-2.0.1-py3-none-any.whl",
+  "wheelSha256": "7d7f5bf88b0d21f7da0415b089cff3bcbcbdda04e1a3c9719964947942c859fe",
+  "files": {
+    "vendor/transkun/transkun/Data.py": {
+      "bytes": 32759,
+      "sha256": "ecf8cbcf5fff1f7c09e18b232265ce6348fed91201b3436adfe0a480ba606931"
+    },
+    "vendor/transkun/transkun/Evaluation.py": {
+      "bytes": 10043,
+      "sha256": "1ea60493ebb9012e51191d9d216295ffe40cfeb08961f19319f40993ae83b55c"
+    },
+    "vendor/transkun/transkun/LayersTransformer.py": {
+      "bytes": 26100,
+      "sha256": "e58aaf7d4f35211180223a02221a223bc004ba47b240e7d0d78a282e73453648"
+    },
+    "vendor/transkun/transkun/Layers_ablation.py": {
+      "bytes": 6809,
+      "sha256": "11e3c0746944a6aa3a0033623ed77776ef1ab84e23bf5c2f21381377ceeb23d9"
+    },
+    "vendor/transkun/transkun/ModelTransformer.py": {
+      "bytes": 27691,
+      "sha256": "58470f5764fabde0636a13fda7c42a95129db4d2203c2ea8f818e52b9375cfa8"
+    },
+    "vendor/transkun/transkun/Model_ablation.py": {
+      "bytes": 24438,
+      "sha256": "9a63632708374fbbfadcc2ddd3773e91ace2f0b3b7a54cc27c1f77e4b88dbb97"
+    },
+    "vendor/transkun/transkun/SyncBN.py": {
+      "bytes": 5673,
+      "sha256": "cee23ac1ff26a9af2c8f9d8650eccaef124de7239f345397372a00eae2e702e1"
+    },
+    "vendor/transkun/transkun/TrainUtil.py": {
+      "bytes": 9458,
+      "sha256": "339508507801c54ab4beea9f7f9d61270045d561e23c83742848f855323fa9cc"
+    },
+    "vendor/transkun/transkun/Util.py": {
+      "bytes": 4447,
+      "sha256": "e681ebc8a53dd94bffa430962b7619acff0dd2022d486f70ab313952382f0434"
+    },
+    "vendor/transkun/transkun/__init__.py": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "vendor/transkun/transkun/computeMetrics.py": {
+      "bytes": 6862,
+      "sha256": "e64c738fe9ad08ffa4fdc127ff6738c5063fddd0f4523b5cc031506100c8f4a7"
+    },
+    "vendor/transkun/transkun/createDatasetMaestro.py": {
+      "bytes": 1596,
+      "sha256": "f0fe67e46241e7a658bab85383969b1184b1c086ee2f47c0380bea3fb4b8986e"
+    },
+    "vendor/transkun/transkun/crfMinimalExample.py": {
+      "bytes": 811,
+      "sha256": "9aad26acc91f7267b4a5e2523a995bc828e7284df18ed205fa2c4558deffb427"
+    },
+    "vendor/transkun/transkun/plotDeviation.py": {
+      "bytes": 2699,
+      "sha256": "3a5530303a45676d5aaa5b78984a13c055237f7888583611e5f7f76288091a11"
+    },
+    "vendor/transkun/transkun/train.py": {
+      "bytes": 15591,
+      "sha256": "e4f6e537806340d0e0a9b346d18ca316cbfd7328858c3e9a82b5c1d42e8d361a"
+    },
+    "vendor/transkun/transkun/transcribe.py": {
+      "bytes": 2975,
+      "sha256": "152f042a97f947383da7b325a86f03e642fa3abf3fd44e7d58a4ba2129699b79"
+    },
+    "vendor/transkun/transkun/CRF/NeuralSemiCRFInterval.py": {
+      "bytes": 16638,
+      "sha256": "deedcd96d54dcda0ad7530f99ece006c38385b47b3d7585694f36c1e077b0b63"
+    },
+    "vendor/transkun/transkun/CRF/__init__.py": {
+      "bytes": 57,
+      "sha256": "5f6c080079be73a235dd44c2ac889d82b72471cd0ebb7630210e92a8e30cd38d"
+    },
+    "models/instrument-transcription/transkun-2.0.conf": {
+      "bytes": 782,
+      "sha256": "d3d989214eb148230ee5df476d994dcde6af595904d3f968f1221d2e3bea5ac6"
+    },
+    "models/instrument-transcription/transkun-2.0.pt": {
+      "bytes": 56408978,
+      "sha256": "50a80010effc2a59ffcd068a95cd2b29bd7f23a27a3515bc3ccd209c89a3d44c"
+    },
+    "vendor/transkun/transkun/pretrained/__init__.py": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "vendor/transkun/LICENSE": {
+      "bytes": 1066,
+      "sha256": "7662b6b4acfb7090612b946c1f427d8c7b591cda7d7a16139aed4eb66d20b066"
+    }
+  }
+}

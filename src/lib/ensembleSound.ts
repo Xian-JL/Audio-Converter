@@ -10,7 +10,7 @@ export function voiceLevelDb(staff:number,layer:EnsembleLayer,count:number,level
   return levels[staff]>0&&layer.gain>0?(staff===0?-5:-8)+instrument(layer.instrument).trim+normalizationDb(layer.instrument)+20*Math.log10(levels[staff]/100)+20*Math.log10(layer.gain/100)-10*Math.log10(Math.max(1,count)):-Infinity;
 }
 export function disposePlayers(players:EnsemblePlayer[]){for(const p of players){p.synth.dispose();p.eq.dispose();p.pan.dispose();}}
-export function createStaffPlayers(tone:Tone,layers:EnsembleLayer[],banks:SampleBanks,staff:number,levels:number[],limiter:import('tone').Limiter){
+export function createStaffPlayers(tone:Tone,layers:EnsembleLayer[],banks:SampleBanks,staff:number,levels:number[],limiter:import('tone').Limiter,independentNotes=false){
   const players:EnsemblePlayer[]=[],count=layers.filter(l=>l.enabled&&l.gain>0).reduce((n,l)=>n+l.count,0);
   try{
     for(const layer of layers){
@@ -20,7 +20,7 @@ export function createStaffPlayers(tone:Tone,layers:EnsembleLayer[],banks:Sample
         const spread=playerSpread(layer.count,member),pan=new tone.Panner(Math.max(-1,Math.min(1,layer.pan+spread.pan))).connect(limiter);
         const eq=new tone.EQ3({low:profile.low,mid:profile.mid,high:profile.high,lowFrequency:250,highFrequency:2500}).connect(pan);
         const attack=sound.attack*profile.attack,release=(staff===1&&layer.instrument==='piano'?.25:sound.release)*profile.release;
-        const synth=sustained.has(layer.instrument)?new SustainedSampler(tone,banks.get(layer.instrument)!,eq,attack,release,voiceLevelDb(staff,layer,count,levels)):new tone.Sampler({urls:banks.get(layer.instrument)!,attack,release,volume:voiceLevelDb(staff,layer,count,levels)}).connect(eq);
+        const synth=sustained.has(layer.instrument)||independentNotes?new SustainedSampler(tone,banks.get(layer.instrument)!,eq,attack,release,voiceLevelDb(staff,layer,count,levels),sustained.has(layer.instrument)):new tone.Sampler({urls:banks.get(layer.instrument)!,attack,release,volume:voiceLevelDb(staff,layer,count,levels)}).connect(eq);
         players.push({synth,eq,pan,layer,cents:spread.cents,delay:spread.delay});
       }
     }

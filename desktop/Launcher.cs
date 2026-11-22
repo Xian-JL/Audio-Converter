@@ -12,8 +12,8 @@ using System.Windows.Forms;
 
 [assembly: System.Reflection.AssemblyTitle("声笺 · Shengjian")]
 [assembly: System.Reflection.AssemblyDescription("Shengjian music workspace")]
-[assembly: System.Reflection.AssemblyVersion("0.7.2.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.7.2.0")]
+[assembly: System.Reflection.AssemblyVersion("0.8.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.8.0.0")]
 
 internal static class Program
 {
@@ -156,7 +156,7 @@ internal sealed class StudioContext : ApplicationContext
                 throw new InvalidOperationException("端口上运行的不是此软件的服务。请退出其他声笺实例。");
             if (++ticks % 2 != 0) return;
             var health = Request("/api/health");
-            if (!(bool)health["ready"]) { Fail("本地资源不完整，请查看日志或重新安装软件。"); return; }
+            if (!(bool)health[health.ContainsKey("scoreReady") ? "scoreReady" : "ready"]) { Fail("本地资源不完整，请查看日志或重新安装软件。"); return; }
             ready = true; tray.Text = "声笺 · 后台已就绪"; splash.Hide();
             if (pendingOpen) { pendingOpen = false; OpenWindow(); }
         }

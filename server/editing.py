@@ -30,6 +30,9 @@ def restore_note_identity(notes,encoded,duration):
     return raw
 
 def score_for_request(source,body,anchor=True):
+    if source.get('sourceKind') in ('piano','guzheng'):
+        from .performance_score import generate
+        return generate(source,body if anchor else {**body,'downbeats':None,'anchorNoteId':None})
     edited=body.get('editedNotes')
     result=source if edited is None else {**source,'notes':restore_note_identity(notes_checked(edited,source['duration']),body.get('identityNotesJson'),source['duration'])}
     score=generate_melody_score(result,body.get('bpm'),body.get('meter'),body.get('key'),body.get('anchorNoteId') if anchor else None,body.get('downbeats') if anchor else None)
@@ -37,6 +40,9 @@ def score_for_request(source,body,anchor=True):
     return score
 
 def edit_score(source,body):
+    if source.get('sourceKind') in ('piano','guzheng'):
+        from .performance_editing import edit
+        return edit(source,body)
     current=score_for_request(source,body)
     if body.get('sourceFingerprint')!=current['scoreFingerprint']:raise ValueError('The melody has changed. Reload the score.')
     notes=notes_checked(body.get('editedNotes') if body.get('editedNotes') is not None else source['notes'],source['duration'])

@@ -1,0 +1,6 @@
+# Inference adapters reuse the existing CPU torch, ONNX Runtime, scipy and librosa.
+moduleconf==0.1.4
+ncls==0.0.71
+mir_eval==0.8.2
+torchaudio==2.9.1
+resampy==0.4.3

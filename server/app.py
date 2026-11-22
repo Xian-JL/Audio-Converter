@@ -160,7 +160,7 @@ def watch(job_id, process):
 def launch(job_id):
     directory = owned_dir(job_id)
     log = (directory / 'worker.log').open('a', encoding='utf-8')
-    process = subprocess.Popen([sys.executable, '-u', '-m', 'server.worker', str(directory), '--mode', jobs[job_id].get('separationMode', 'enhanced')], cwd=ROOT, stdout=subprocess.PIPE, stderr=log, text=True, encoding='utf-8', errors='replace', creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0)
+    process = subprocess.Popen([sys.executable, '-u', '-m', 'server.worker', str(directory), '--mode', jobs[job_id].get('separationMode', 'enhanced'), '--source-kind', jobs[job_id].get('sourceKind','vocal')], cwd=ROOT, stdout=subprocess.PIPE, stderr=log, text=True, encoding='utf-8', errors='replace', creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0)
     log.close()
     jobs[job_id]['process'] = process
     threading.Thread(target=watch, args=(job_id, process), daemon=True).start()
@@ -186,6 +186,7 @@ def health():
     piano_names = ['A0'] + [f'{note}{octave}' for octave in range(1,8) for note in ('C','Ds','Fs','A')] + ['C8']
     required = [('ffmpeg', FFMPEG), ('ffprobe', FFPROBE), ('separation model', ROOT / 'models/mdx.onnx'), ('separation configuration', ROOT / 'models/mdx-config.json'), ('enhanced vocal model', ROOT / 'models/demucs-vocals.onnx')]
     missing = [name for name, path in required if not path.is_file()]
+    common_missing = [name for name, path in required[:2] if not path.is_file()]
     try:
         from .game import model_directory
         model_directory()
@@ -199,7 +200,9 @@ def health():
     except (OSError,ValueError,KeyError):missing.append('instrument samples')
     from .emotion_runtime import available as emotion_available
     emotion_models={name:emotion_available(name) for name in ('emo','midi-emotion')}
-    return jsonify(ready=not missing, missing=missing,engine='game',scoreVersion=20,appVersion=APP_VERSION,textureReady=any(emotion_models.values()),emotionModels=emotion_models)
+    from .instrument_runtime import available as instrument_available
+    instruments = {k:instrument_available(k) for k in ('piano','guzheng')}
+    return jsonify(instrumentModels=instruments,sourceReady={'vocal':not missing,**{k:v and not common_missing for k,v in instruments.items()}},scoreReady=True,ready=not missing, missing=missing,engine='game',scoreVersion=21,appVersion=APP_VERSION,textureReady=any(emotion_models.values()),emotionModels=emotion_models)
 
 @app.post('/api/jobs')
 def upload():
@@ -212,6 +215,11 @@ def upload():
     if not files:
         return jsonify(error='Please select an MP3 or FLAC file.'), 400
     upload_file = files[0]
+    source_kind = request.form.get('sourceKind','vocal')
+    if source_kind not in ('vocal','piano','guzheng'):return jsonify(error='Unknown recording type.'),400
+    if source_kind!='vocal':
+        from .instrument_runtime import available
+        if not available(source_kind):return jsonify(error='The selected instrument model is missing. Run SetupInstrument.cmd first.'),409
     mode = request.form.get('separationMode', 'enhanced')
     if mode not in ('enhanced', 'original'):
         return jsonify(error='Unknown vocal separation mode.'), 400
@@ -242,7 +250,7 @@ def upload():
         if client:
             client_sequences[client] = sequence
         previous=[old_id for old_id,j in jobs.items() if j.get('client','')==client]
-        jobs[job_id] = {'id': job_id, 'client': client, 'separationMode': mode, 'name': name, 'downloadName': name if extension == '.mp3' else name[:-len(extension)] + '.mp3', 'size': original.stat().st_size, 'stage': 'validating', 'progress': 0, 'playbackReady': extension == '.mp3', 'analysisReady': False, 'createdAt': time.time()}
+        jobs[job_id] = {'id': job_id, 'client': client, 'separationMode': mode, 'sourceKind':source_kind, 'name': name, 'downloadName': name if extension == '.mp3' else name[:-len(extension)] + '.mp3', 'size': original.stat().st_size, 'stage': 'validating', 'progress': 0, 'playbackReady': extension == '.mp3', 'analysisReady': False, 'createdAt': time.time()}
         try:launch(job_id)
         except OSError as error:
             cancel(job_id)
@@ -345,8 +353,12 @@ def score(job_id):
         try:
             result = json.loads((directory / 'analysis.json').read_text(encoding='utf-8'))
             from .melody_score import generate_melody_score
-            if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME to create the melody-only score.'),409
-            score=generate_melody_score(result,request.args.get('bpm'),request.args.get('meter'),request.args.get('key'),request.args.get('anchorNoteId'))
+            if result.get('sourceKind') in ('piano','guzheng'):
+                from .performance_score import generate
+                score=generate(result,dict(request.args))
+            else:
+                if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME to create the melody-only score.'),409
+                score=generate_melody_score(result,request.args.get('bpm'),request.args.get('meter'),request.args.get('key'),request.args.get('anchorNoteId'))
             score['sourceName']=job['name']
             return jsonify(score)
         except ValueError as error:
@@ -362,11 +374,12 @@ def harmony(job_id):
         job=jobs.get(job_id)
         if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready yet.'),404
         result=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'))
-    if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
+    if result.get('engine')!='game' and result.get('sourceKind') not in ('piano','guzheng'):return jsonify(error='Please rerun analysis with GAME.'),409
     try:
         from .editing import score_for_request
         from .basic_harmony import harmony_for_settings
         melody=score_for_request(result,body)
+        if melody.get('scoreMode')=='performance' or melody.get('sourceKind') and body.get('melodyConfirmed') is not True:raise ValueError('Create a melody branch before adding accompaniment.')
         if body.get('sourceFingerprint')!=melody['scoreFingerprint']:
             return jsonify(error='The melody has changed. Reload the score before generating chords.'),409
         return jsonify(harmony_for_settings(melody,body))
@@ -382,11 +395,12 @@ def texture(job_id):
         job=jobs.get(job_id)
         if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready yet.'),404
         result=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'))
-    if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
+    if result.get('engine')!='game' and result.get('sourceKind') not in ('piano','guzheng'):return jsonify(error='Please rerun analysis with GAME.'),409
     try:
         from .editing import score_for_request
         from .basic_harmony import harmony_for_settings
         melody=score_for_request(result,body)
+        if melody.get('scoreMode')=='performance' or melody.get('sourceKind') and body.get('melodyConfirmed') is not True:raise ValueError('Create a melody branch before adding accompaniment.')
         if body.get('sourceFingerprint')!=melody['scoreFingerprint']:return jsonify(error='The melody has changed. Reload the score.'),409
         harmony=harmony_for_settings(melody,body)
         if body.get('harmonyFingerprint')!=harmony['fingerprint']:return jsonify(error='The harmony has changed. Generate the accompaniment again.'),409
@@ -406,7 +420,7 @@ def rebar(job_id):
         job=jobs.get(job_id)
         if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready yet.'),404
         result=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'));name=job['name']
-    if result.get('engine')!='game':return jsonify(error='Please rerun analysis with GAME.'),409
+    if result.get('engine')!='game' and result.get('sourceKind') not in ('piano','guzheng'):return jsonify(error='Please rerun analysis with GAME.'),409
     try:
         from .editing import score_for_request
         original=score_for_request(result,body,anchor=False)
@@ -420,6 +434,68 @@ def rebar(job_id):
             harmony=harmony_for_settings(rebuilt,{})
         return jsonify(score=rebuilt,harmony=harmony)
     except (ValueError,TypeError) as error:return jsonify(error=str(error)),400
+
+@app.post('/api/jobs/<job_id>/midi')
+def performance_midi(job_id):
+    import io
+    body=request.get_json(silent=True)
+    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:return jsonify(error='Invalid MIDI export settings.'),400
+    with lock:
+        job=jobs.get(job_id)
+        if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready.'),404
+        source=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'))
+    try:
+        from .editing import score_for_request
+        current=score_for_request(source,body)
+        if current['scoreFingerprint']!=body.get('sourceFingerprint'):raise ValueError('The score changed.')
+        import pretty_midi
+        midi=pretty_midi.PrettyMIDI(initial_tempo=current['bpm'])
+        for staff in (1,2):
+            track=pretty_midi.Instrument(program=24 if current.get('sourceKind')=='guzheng' else 0,name='Treble' if staff==1 else 'Bass')
+            for e in current['events']:
+                if e['staff']==staff:
+                    for pitch in e['pitches']:track.notes.append(pretty_midi.Note(velocity=max(1,round(e.get('velocity',.75)*127)),pitch=pitch,start=e['start'],end=e['end']))
+            if current.get('scoreMode')=='performance':
+                for c in source.get('controllers',[]):
+                    track.control_changes.extend([pretty_midi.ControlChange(c['controller'],c['value'],c['start']),pretty_midi.ControlChange(c['controller'],0,c['end'])])
+            midi.instruments.append(track)
+        output=io.BytesIO();midi.write(output);output.seek(0)
+        return send_file(output,mimetype='audio/midi',as_attachment=True,download_name='performance.mid')
+    except (ValueError,TypeError,KeyError) as error:return jsonify(error=str(error)),400
+
+@app.post('/api/jobs/<job_id>/transcription-candidate')
+def transcription_candidate(job_id):
+    body=request.get_json(silent=True)
+    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:return jsonify(error='Invalid candidate settings.'),400
+    with lock:
+        job=jobs.get(job_id)
+        if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready.'),404
+        source=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'));name=job['name']
+    try:
+        from .performance_score import generate
+        if source.get('sourceKind')!='guzheng' or 'baselineNotes' not in source:raise ValueError('No baseline candidate is available.')
+        if generate(source,body)['scoreFingerprint']!=body.get('sourceFingerprint'):raise ValueError('The score changed.')
+        score=generate(source,{**body,'scoreMode':'performance','editedNotes':source['baselineNotes'],'downbeats':None,'anchorNoteId':None});score['sourceName']=name
+        return jsonify(score=score,harmony=None,kind='edit')
+    except (ValueError,TypeError,KeyError) as error:return jsonify(error=str(error)),400
+
+@app.post('/api/jobs/<job_id>/melody-branch')
+def melody_branch(job_id):
+    body=request.get_json(silent=True)
+    if not isinstance(body,dict) or (request.content_length or 0)>4*1024*1024:return jsonify(error='Invalid melody branch settings.'),400
+    with lock:
+        job=jobs.get(job_id)
+        if not job or not job.get('analysisReady'):return jsonify(error='Score is not ready.'),404
+        source=json.loads((owned_dir(job_id)/'analysis.json').read_text(encoding='utf-8'));name=job['name']
+    try:
+        from .performance_score import generate,melody_candidate,checked_notes
+        if source.get('sourceKind') not in ('piano','guzheng'):raise ValueError('This action requires an instrument recording.')
+        current=generate(source,body)
+        if current['scoreFingerprint']!=body.get('sourceFingerprint'):raise ValueError('The score changed.')
+        notes=checked_notes(body.get('editedNotes') if body.get('editedNotes') is not None else source['notes'],source['duration'])
+        score=generate(source,{**body,'scoreMode':'melody','editedNotes':melody_candidate(notes),'downbeats':None,'anchorNoteId':None});score['sourceName']=name
+        return jsonify(score=score,harmony=None,kind='edit')
+    except (ValueError,TypeError,KeyError) as error:return jsonify(error=str(error)),400
 
 @app.post('/api/jobs/<job_id>/edit')
 def edit(job_id):
@@ -448,7 +524,7 @@ def open_project():
         if sequence<client_sequences.get(client,0):return jsonify(error='This project was replaced by a newer selection.'),409
         directory=owned_dir(identifier);directory.mkdir(parents=True)
         (directory/'analysis.json').write_text(json.dumps(original,allow_nan=False),encoding='utf-8')
-        job={'id':identifier,'client':client,'name':root['sourceName'],'size':0,'downloadName':Path(root['sourceName']).stem+'.mp3','stage':'ready','progress':1,'playbackReady':False,'analysisReady':True,'restored':True,'info':{'duration':root['duration'],'format':'PROJECT'}}
+        job={'id':identifier,'client':client,'name':root['sourceName'],'sourceKind':original.get('sourceKind','vocal'),'size':0,'downloadName':Path(root['sourceName']).stem+'.mp3','stage':'ready','progress':1,'playbackReady':False,'analysisReady':True,'restored':True,'info':{'duration':root['duration'],'format':'PROJECT'}}
         for old in list(jobs):
             if jobs[old].get('client','')==client:cancel(old)
         client_sequences[client]=sequence;jobs[identifier]=job

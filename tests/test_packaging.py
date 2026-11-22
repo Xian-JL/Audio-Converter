@@ -4,9 +4,20 @@ from pathlib import Path
 import tempfile
 import unittest
 import zipfile
-from scripts.package_portable import archive_bundle
+from scripts.package_portable import archive_bundle, resource_copier
 
 class PortableArchiveTests(unittest.TestCase):
+    def test_reuse_links_only_identical_immutable_resources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);old=root/'old';new=root/'new';source=root/'source'
+            for folder in (old,new,source):folder.mkdir()
+            for name in ('models/same.bin','models/different.bin','server/code.py'):
+                a=old/name;b=source/name;a.parent.mkdir(parents=True,exist_ok=True);b.parent.mkdir(parents=True,exist_ok=True)
+                a.write_bytes(b'old');b.write_bytes(b'new' if 'different' in name else b'old')
+                target=new/name;target.parent.mkdir(parents=True,exist_ok=True);resource_copier(new,old)(b,target)
+                self.assertEqual(target.read_bytes(),b.read_bytes())
+                self.assertEqual(target.samefile(a),name=='models/same.bin')
+
     def test_archive_preserves_runtime_stubs_and_licenses_but_omits_development_files(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);bundle=root/'bundle';bundle.mkdir()

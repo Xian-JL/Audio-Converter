@@ -37,3 +37,4 @@ jobs:
       - run: python -m unittest discover -s tests -p test_phrase_development.py
       - run: python -m unittest discover -s tests -p test_provenance.py
       - run: python -m unittest discover -s tests -p test_packaging.py
+      - run: python -m unittest discover -s tests -p test_performance.py

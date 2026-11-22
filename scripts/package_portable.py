@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import importlib.metadata as metadata
 import json
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -47,7 +48,7 @@ def archive_bundle(destination,archive):
 
 def distributions():
     pending=[]
-    for name in ('requirements.txt','requirements-texture.txt'):
+    for name in ('requirements.txt','requirements-texture.txt','requirements-instrument.txt'):
         pending.extend(Requirement(line.strip()).name for line in (ROOT/name).read_text().splitlines() if line.strip() and not line.startswith('#'))
     selected={}
     while pending:
@@ -59,26 +60,47 @@ def distributions():
             if value.marker is None or value.marker.evaluate({'extra':''}):pending.append(value.name)
     return selected
 
-def build(destination):
+def resource_copier(destination, reuse=None):
+    """Reuse verified immutable bytes on the same volume; code stays independent."""
+    def copy(source,target):
+        source=Path(source);target=Path(target);relative=target.relative_to(destination)
+        immutable=relative.parts[0] in ('models','tools','vendor','runtime') or relative.parts[:2] in (('dist','piano'),('dist','instruments'))
+        candidate=reuse/relative if reuse is not None else None
+        if immutable and candidate is not None and candidate.is_file() and source.stat().st_size==candidate.stat().st_size:
+            with source.open('rb') as a,candidate.open('rb') as b:
+                same=hashlib.file_digest(a,'sha256').digest()==hashlib.file_digest(b,'sha256').digest()
+            if same:
+                try:os.link(candidate,target);return str(target)
+                except OSError:pass # Different volume/filesystem: use a normal independent copy.
+        return shutil.copy2(source,target)
+    return copy
+
+
+def build(destination,reuse=None):
     if sys.platform!='win32':raise RuntimeError('Build the Windows bundle on Windows.')
     destination=destination.resolve()
     if destination.exists():raise FileExistsError('Choose a new output directory; existing files are never overwritten.')
+    reuse=reuse.resolve() if reuse else None
+    if reuse and (not reuse.is_dir() or reuse==destination):raise ValueError('Invalid resource reuse directory.')
+    copy_resource=resource_copier(destination,reuse)
     if not (ROOT/'dist/index.html').is_file():raise RuntimeError('Build the frontend first.')
     from server.game import model_directory
     from server.emotion_runtime import verify
     from server.audio import FFMPEG,FFPROBE
     model_directory();verify('emo');verify('midi-emotion')
+    from server.instrument_runtime import verify as verify_instrument
+    verify_instrument('transkun');verify_instrument('basic-pitch')
     if not FFMPEG.is_file() or not FFPROBE.is_file():raise RuntimeError('Run Setup.cmd first.')
     installed=distributions();destination.mkdir(parents=True)
     for directory in ('dist','server','vendor','models','tools'):
-        shutil.copytree(ROOT/directory,destination/directory,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.part','*.zip','*.tar.gz','*.preparing','*.log','.cache'))
-    for name in ('README.md','README.zh-CN.md','THIRD_PARTY.md','SPEC.md','RELEASE.md','requirements.txt','requirements-texture.txt'):
+        shutil.copytree(ROOT/directory,destination/directory,copy_function=copy_resource,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.part','*.zip','*.whl','*.tar.gz','*.preparing','*.log','.cache'))
+    for name in ('README.md','README.zh-CN.md','THIRD_PARTY.md','SPEC.md','RELEASE.md','ARCHITECTURE.md','DESIGN-0.8.0.md','requirements.txt','requirements-texture.txt','requirements-instrument.txt'):
         shutil.copy2(ROOT/name,destination/name)
     base=Path(sys.base_prefix);runtime_dir=destination/'runtime';runtime_dir.mkdir()
     for pattern in ('python*.exe','*.dll','LICENSE*'):
-        for file in base.glob(pattern):shutil.copy2(file,runtime_dir/file.name)
-    shutil.copytree(base/'DLLs',runtime_dir/'DLLs',ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.pdb','tcl*','tk*','_tkinter*'))
-    shutil.copytree(base/'Lib',runtime_dir/'Lib',ignore=shutil.ignore_patterns('site-packages','__pycache__','*.pyc','test','tests','tkinter','idlelib','turtledemo','ensurepip'))
+        for file in base.glob(pattern):copy_resource(file,runtime_dir/file.name)
+    shutil.copytree(base/'DLLs',runtime_dir/'DLLs',copy_function=copy_resource,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.pdb','tcl*','tk*','_tkinter*'))
+    shutil.copytree(base/'Lib',runtime_dir/'Lib',copy_function=copy_resource,ignore=shutil.ignore_patterns('site-packages','__pycache__','*.pyc','test','tests','tkinter','idlelib','turtledemo','ensurepip'))
     target_site=runtime_dir/'Lib/site-packages';target_site.mkdir()
     for name,dist in installed.items():
         site=Path(dist.locate_file('')).resolve()
@@ -87,7 +109,7 @@ def build(destination):
             source=Path(dist.locate_file(record)).resolve()
             if not source.is_relative_to(site) or not source.is_file() or not runtime_file(source.relative_to(site)):continue
             target=target_site/source.relative_to(site);target.parent.mkdir(parents=True,exist_ok=True)
-            if not target.exists():shutil.copy2(source,target)
+            if not target.exists():copy_resource(source,target)
     # Explicit relative search path prevents accidental dependence on the source PC.
     (runtime_dir/f'python{sys.version_info.major}{sys.version_info.minor}._pth').write_text('Lib\nDLLs\nLib/site-packages\n..\nimport site\n',encoding='utf-8')
     (destination/'Start.cmd').write_bytes(b'@echo off\r\ncd /d "%~dp0"\r\n"runtime\\python.exe" -m server.app\r\nif errorlevel 1 pause\r\n')
@@ -107,5 +129,5 @@ def build(destination):
 
 if __name__=='__main__':
     sys.path.insert(0,str(ROOT))
-    parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,required=True);parser.add_argument('--zip',type=Path);args=parser.parse_args();build(args.output)
+    parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,required=True);parser.add_argument('--zip',type=Path);parser.add_argument('--reuse',type=Path,help='Reuse identical immutable resources via verified NTFS hard links.');args=parser.parse_args();build(args.output,args.reuse)
     if args.zip:archive_bundle(args.output,args.zip)

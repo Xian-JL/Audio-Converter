@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import argparse
 import numpy as np
 import torch
 import onnxruntime
@@ -18,6 +19,22 @@ assert all(Path(m.__file__).resolve().is_relative_to(runtime) for m in (np,torch
 assert service.ROOT==runtime.parent
 health=service.app.test_client().get('/api/health').json
 assert health['ready'] and health['textureReady'] and health['appVersion']==service.APP_VERSION,health
+parser=argparse.ArgumentParser();parser.add_argument('--piano-probe',type=Path);parser.add_argument('--guzheng-probe',type=Path);args=parser.parse_args()
+instrument_checks={}
+if health.get('scoreVersion',0)>=21:
+    from server.instrument_runtime import transcribe
+    from server.performance_score import generate
+    from server.project import normalize_project
+    assert all(health['instrumentModels'].values()),health
+    for kind,path in (('piano',args.piano_probe),('guzheng',args.guzheng_probe)):
+        if path is None:continue
+        import hashlib
+        detected=transcribe(path,kind);assert detected['notes']
+        detected.update(sourceKind=kind,sourceSha256=hashlib.sha256(path.read_bytes()).hexdigest())
+        params={'bpm':120,'meter':'4/4','key':'C major'};written=generate(detected,params)
+        payload={'kind':'audio-converter-project','schemaVersion':3,'source':{**detected,**params,'name':path.name,'scoreFingerprint':written['scoreFingerprint']},'versions':[{}],'activeVersion':0}
+        _,restored,_=normalize_project(payload);assert written['events']==restored['events']
+        instrument_checks[kind]={'notes':len(detected['notes']),'inferenceAndProjectRestore':True}
 result=GameTranscriber().transcribe(np.zeros(44100,np.float32),44100)
 assert result['duration']==1 and result['engine']=='game'
 source={'engine':'game','sourceSha256':'a'*64,'engineSignature':{'test':'portable'},'duration':12,'notes':[{'id':f'gf-{i+1:06d}','start':i+4,'end':i+4.8,'midi':60+i,'midiFloat':float(60+i)} for i in range(4)]}
@@ -38,4 +55,4 @@ with tempfile.TemporaryDirectory(prefix='portable-audio-smoke-') as temporary:
     assert imported.json['workspace']['ensembles']==ensembles
     service.cancel(imported.json['job']['id'])
 service.RUNTIME=original_runtime
-print(json.dumps({'version':health['appVersion'],'isolatedRuntime':True,'gameSilenceInference':True,'textureSubprocessInference':True,'projectSchemaTwoEnsembles':True,'notes':len(response.json['events'])}))
+print(json.dumps({'version':health['appVersion'],'isolatedRuntime':True,'gameSilenceInference':True,'textureSubprocessInference':True,'projectSchemaTwoEnsembles':True,'instruments':instrument_checks,'notes':len(response.json['events'])}))

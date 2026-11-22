@@ -1,0 +1,28 @@
+{
+  "package": "basic-pitch",
+  "version": "0.4.0",
+  "wheelUrl": "https://files.pythonhosted.org/packages/99/0e/3a36d22562daeb0ae3c78ac78da3f8dba96543c5576ed57d4acb8ddbab5b/basic_pitch-0.4.0-py2.py3-none-any.whl",
+  "wheelSha256": "738adb503aae7fdfc7d1e1511aa0ce35052315f260a19531ef4c356708425db0",
+  "files": {
+    "vendor/basic-pitch/basic_pitch/constants.py": {
+      "bytes": 2355,
+      "sha256": "3374330dbf374cc4ba3d76eba6aad06e089a40252c4c68b3bf93510bd7b37214"
+    },
+    "vendor/basic-pitch/basic_pitch/note_creation.py": {
+      "bytes": 18929,
+      "sha256": "9c813509acf57ed9b902d2b9fcd9f8118b2c5ffe568a06df9cfa60f5c5ee2572"
+    },
+    "models/instrument-transcription/basic-pitch.onnx": {
+      "bytes": 230444,
+      "sha256": "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec"
+    },
+    "vendor/basic-pitch/LICENSE": {
+      "bytes": 11384,
+      "sha256": "929c910bae2152fa87199a5d0660e09263419b7eee6d4b301d05ee2aaf211c37"
+    },
+    "vendor/basic-pitch/NOTICE": {
+      "bytes": 1034,
+      "sha256": "b810e55c0e3b520fabb45fc2ccc74880187bf84e309971968541cc812dcde905"
+    }
+  }
+}

@@ -47,6 +47,7 @@ dist-ssr
 *.key
 *.p12
 tests/fixtures/*.json
+!tests/fixtures/performance-project.json
 *.wav
 *.musicxml
 
@@ -65,3 +66,4 @@ release/
 !public/**/*.mp3
 /exports/
 .desktop/
+/models/instrument-transcription/

@@ -1,3 +1,5 @@
+import {readFileSync} from 'node:fs';
+const appVersion=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version;
 // v0.7.2 task flow, persistence and full-page layout against an isolated QA service.
 import {chromium,browserPath,routeQaApi} from './browser-runtime.mjs';
 import assert from 'node:assert/strict';
@@ -20,7 +22,7 @@ async function noOverflow(){assert.ok(await page.evaluate(()=>document.documentE
 try{
   await page.goto('http://127.0.0.1:8765');await page.getByRole('button',{name:'中文',exact:true}).click();
   await page.waitForFunction(()=>!document.querySelector('.project-actions button')?.disabled);
-  assert.equal(await page.locator('.release-tag').textContent(),'v0.7.2');
+  assert.equal(await page.locator('.release-tag').textContent(),'v'+appVersion);
   await page.screenshot({path:'tests/output/studio-start.png'});
   await page.getByLabel('打开工程',{exact:true}).setInputFiles(fixture);await settled();
   assert.equal(await page.locator('.measure-hitbox').count(),82);
@@ -40,7 +42,7 @@ try{
   await task('演奏');await task('器乐');assert.equal(await page.getByLabel('器乐情感方向',{exact:true}).inputValue(),'calm');
   // Draft settings must not overwrite the saved selected candidate.
   const saved=await save('tests/output/studio-roundtrip.acproject.json');
-  assert.equal(saved.appVersion,'0.7.2');assert.deepEqual(saved.source,original.source);
+  assert.equal(saved.appVersion,appVersion);assert.deepEqual(saved.source,original.source);
   assert.deepEqual(saved.textureSets,original.textureSets);assert.deepEqual(saved.versions,original.versions.map((v,i)=>({...v,kind:i===0?'original':v.kind==='edit'?'edit':'rebar',harmony:v.harmony||null})));
   report.exactRoundtrip=true;report.draftsSurviveTabs=true;
   for(const index of ['0','2']){

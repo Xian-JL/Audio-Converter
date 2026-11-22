@@ -1,0 +1,143 @@
+{
+  "version": "0.8.0-beta.1",
+  "status": "experimental; formal acceptance gates NOT met",
+  "dataset": "ccmusic-database/Guzheng_Tech99",
+  "config": "default",
+  "split": "test",
+  "testRows": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "excerpt": "first 30 seconds of each recording",
+  "developmentRowExcluded": 0,
+  "matching": "equal MIDI, onset within 50 ms, one-to-one matching; offset not scored",
+  "caveats": "Small technical-clip pilot; no performer-separated generalization claim, no whole-song or listening acceptance. Do not tune on these rows and call them held out again.",
+  "candidateMacroF1": 0.7041994071992681,
+  "officialBaselineMacroF1": 0.6508550860471832,
+  "segments": [
+    {
+      "testRow": 1,
+      "seconds": 30.0,
+      "inferenceSeconds": 5.362156099999993,
+      "referenceNotes": 48,
+      "metrics": {
+        "notes": {
+          "precision": 0.36134453781512604,
+          "recall": 0.8958333333333334,
+          "f1": 0.5149700598802396,
+          "count": 119
+        },
+        "baselineNotes": {
+          "precision": 0.4174757281553398,
+          "recall": 0.8958333333333334,
+          "f1": 0.5695364238410596,
+          "count": 103
+        }
+      }
+    },
+    {
+      "testRow": 2,
+      "seconds": 30.0,
+      "inferenceSeconds": 0.7122600000002421,
+      "referenceNotes": 45,
+      "metrics": {
+        "notes": {
+          "precision": 0.6056338028169014,
+          "recall": 0.9555555555555556,
+          "f1": 0.7413793103448275,
+          "count": 71
+        },
+        "baselineNotes": {
+          "precision": 0.4835164835164835,
+          "recall": 0.9777777777777777,
+          "f1": 0.6470588235294118,
+          "count": 91
+        }
+      }
+    },
+    {
+      "testRow": 3,
+      "seconds": 30.0,
+      "inferenceSeconds": 0.7184673000010662,
+      "referenceNotes": 65,
+      "metrics": {
+        "notes": {
+          "precision": 0.6428571428571429,
+          "recall": 0.9692307692307692,
+          "f1": 0.7730061349693251,
+          "count": 98
+        },
+        "baselineNotes": {
+          "precision": 0.5636363636363636,
+          "recall": 0.9538461538461539,
+          "f1": 0.7085714285714286,
+          "count": 110
+        }
+      }
+    },
+    {
+      "testRow": 4,
+      "seconds": 30.0,
+      "inferenceSeconds": 1.0770709999997052,
+      "referenceNotes": 50,
+      "metrics": {
+        "notes": {
+          "precision": 0.6578947368421053,
+          "recall": 1.0,
+          "f1": 0.7936507936507937,
+          "count": 76
+        },
+        "baselineNotes": {
+          "precision": 0.5102040816326531,
+          "recall": 1.0,
+          "f1": 0.6756756756756758,
+          "count": 98
+        }
+      }
+    },
+    {
+      "testRow": 5,
+      "seconds": 30.0,
+      "inferenceSeconds": 0.7905516999999236,
+      "referenceNotes": 24,
+      "metrics": {
+        "notes": {
+          "precision": 0.92,
+          "recall": 0.9583333333333334,
+          "f1": 0.9387755102040817,
+          "count": 25
+        },
+        "baselineNotes": {
+          "precision": 0.7931034482758621,
+          "recall": 0.9583333333333334,
+          "f1": 0.8679245283018867,
+          "count": 29
+        }
+      }
+    },
+    {
+      "testRow": 6,
+      "seconds": 30.0,
+      "inferenceSeconds": 0.8554516000003787,
+      "referenceNotes": 62,
+      "metrics": {
+        "notes": {
+          "precision": 0.37254901960784315,
+          "recall": 0.6129032258064516,
+          "f1": 0.46341463414634143,
+          "count": 102
+        },
+        "baselineNotes": {
+          "precision": 0.34951456310679613,
+          "recall": 0.5806451612903226,
+          "f1": 0.43636363636363645,
+          "count": 103
+        }
+      }
+    }
+  ]
+}

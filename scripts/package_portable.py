@@ -12,7 +12,6 @@ from pathlib import Path
 import shutil
 import sys
 import zipfile
-from packaging.requirements import Requirement
 
 ROOT=Path(__file__).resolve().parents[1]
 VERSION=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
@@ -47,6 +46,7 @@ def archive_bundle(destination,archive):
     print(json.dumps({'archive':str(archive),'files':len(files),'MiB':round(archive.stat().st_size/1048576,2),'unpackedMiB':round(sum(f['bytes'] for f in manifest['files'].values())/1048576,2)}),flush=True)
 
 def distributions():
+    from packaging.requirements import Requirement
     pending=[]
     for name in ('requirements.txt','requirements-texture.txt','requirements-instrument.txt'):
         pending.extend(Requirement(line.strip()).name for line in (ROOT/name).read_text().splitlines() if line.strip() and not line.startswith('#'))
